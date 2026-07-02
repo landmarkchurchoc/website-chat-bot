@@ -22,22 +22,41 @@
     ".lai-card{font-family:var(--_typography---font--primary-family,Gotham,Arial,sans-serif);" +
     "padding:var(--_spacing---space--6,1.5rem);" +
     "margin:0 0 var(--_spacing---space--6,1.5rem);" +
-    "background:var(--swatch--brand-100,#d6e6ff);color:var(--swatch--dark-900,#070b12)}" +
+    "background:var(--swatch--brand-100,#d6e6ff);color:var(--swatch--dark-900,#070b12);position:relative}" +
+    ".lai-hide{position:absolute;top:var(--_spacing---space--4,1rem);right:var(--_spacing---space--4,1rem);" +
+    "background:none;border:none;padding:.25rem;cursor:pointer;font-family:inherit;font-size:.7rem;" +
+    "letter-spacing:.06em;text-transform:uppercase;color:#7c8494}" +
+    ".lai-hide:hover{color:var(--swatch--dark-700,#1b2f53)}" +
     ".lai-label{display:flex;align-items:center;gap:.5rem;font-size:.75rem;letter-spacing:.08em;" +
     "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
     "font-weight:var(--_typography---font--primary-medium,500);margin-bottom:var(--_spacing---space--3,.875rem)}" +
     ".lai-answer{font-size:var(--_typography---font-size--text-main,1rem);line-height:1.6;color:var(--swatch--dark-900,#070b12)}" +
     ".lai-answer p{margin:0 0 1.25rem}" +
     ".lai-answer p:last-child{margin-bottom:0}" +
-    ".lai-answer a{color:var(--swatch--brand-500,#3083fd);text-decoration:underline}" +
+    ".lai-answer a{color:var(--swatch--brand-500,#3083fd);text-decoration:underline;transition:color .2s}" +
+    ".lai-answer a:hover{color:var(--swatch--dark-700,#1b2f53)}" +
     ".lai-answer b{font-weight:var(--_typography---font--primary-bold,700)}" +
     ".lai-sources{margin-top:var(--_spacing---space--4,1rem);padding-top:var(--_spacing---space--3,.875rem);" +
     "border-top:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.12));font-size:.875rem;color:#7c8494}" +
-    ".lai-sources a{color:var(--swatch--brand-500,#3083fd);margin-right:.875rem;text-decoration:none}" +
-    ".lai-sources a:hover{text-decoration:underline}" +
+    ".lai-sources a{color:var(--swatch--brand-500,#3083fd);margin-right:.875rem;text-decoration:none;transition:color .2s}" +
+    ".lai-sources a:hover{color:var(--swatch--dark-700,#1b2f53);text-decoration:underline}" +
     ".lai-deeper{margin-top:.5rem;font-size:.875rem;color:#7c8494}" +
-    ".lai-deeper a{color:var(--swatch--brand-500,#3083fd);text-decoration:none}" +
-    ".lai-deeper a:hover{text-decoration:underline}" +
+    ".lai-deeper a{color:var(--swatch--brand-500,#3083fd);text-decoration:none;transition:color .2s}" +
+    ".lai-deeper a:hover{color:var(--swatch--dark-700,#1b2f53);text-decoration:underline}" +
+    ".lai-actions{display:flex;flex-wrap:wrap;gap:var(--_spacing---space--3,.875rem);align-items:stretch;margin-top:var(--_spacing---space--4,1rem)}" +
+    ".lai-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--swatch--brand-500,#3083fd);" +
+    "color:var(--swatch--light-100,#fff);text-decoration:none;padding:.625rem 1.125rem;" +
+    "border-radius:var(--radius--small,.75rem);font-size:.8125rem;font-weight:var(--_typography---font--primary-medium,500);" +
+    "letter-spacing:.05em;text-transform:uppercase;transition:background-color .2s}" +
+    ".lai-btn:hover{background:var(--swatch--dark-700,#1b2f53);color:var(--swatch--light-100,#fff)}" +
+    ".lai-media{display:block;width:16rem;max-width:100%;text-decoration:none;border-radius:var(--radius--small,.75rem);" +
+    "overflow:hidden;background:var(--swatch--light-100,#fff);transition:transform .2s;box-shadow:0 2px 12px #00000014}" +
+    ".lai-media:hover{transform:translateY(-2px)}" +
+    ".lai-media img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}" +
+    ".lai-media span{display:flex;align-items:center;gap:.375rem;padding:.625rem .875rem;font-size:.8125rem;" +
+    "font-weight:var(--_typography---font--primary-medium,500);letter-spacing:.05em;text-transform:uppercase;" +
+    "color:var(--swatch--brand-500,#3083fd)}" +
+    ".lai-media:hover span{color:var(--swatch--dark-700,#1b2f53)}" +
     ".lai-escalate{margin-top:var(--_spacing---space--4,1rem);padding:var(--_spacing---space--3,.875rem) var(--_spacing---space--4,1rem);" +
     "border-radius:var(--radius--xsmall,.5rem);background:var(--swatch--light-100,#fff);font-size:.9375rem}" +
     ".lai-escalate a{color:var(--swatch--brand-500,#3083fd)}" +
@@ -53,8 +72,8 @@
     ".lai-clamped{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}" +
     ".lai-more{margin-top:.5rem;background:none;border:none;padding:0;cursor:pointer;" +
     "font-family:inherit;font-size:.875rem;font-weight:var(--_typography---font--primary-medium,500);" +
-    "color:var(--swatch--brand-500,#3083fd);text-transform:uppercase;letter-spacing:.05em}" +
-    ".lai-more:hover{text-decoration:underline}" +
+    "color:var(--swatch--brand-500,#3083fd);text-transform:uppercase;letter-spacing:.05em;transition:color .2s}" +
+    ".lai-more:hover{color:var(--swatch--dark-700,#1b2f53);text-decoration:underline}" +
     ".lai-disclaimer{margin-top:var(--_spacing---space--3,.875rem);font-size:.75rem;color:#7c8494}";
   var style = document.createElement("style");
   style.textContent = css;
@@ -116,8 +135,20 @@
     return card;
   }
 
+  function escAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  }
+
   function render(card, html) {
-    card.innerHTML = '<div class="lai-label">✦ Landmark Answer</div>' + html;
+    card.innerHTML =
+      '<div class="lai-label">✦ Landmark Answer</div>' +
+      '<button type="button" class="lai-hide" title="Hide this AI summary">Hide</button>' +
+      html;
+    var hide = card.querySelector(".lai-hide");
+    if (hide) hide.addEventListener("click", function () {
+      try { sessionStorage.setItem("laiHidden", "1"); } catch (e) {}
+      card.remove();
+    });
   }
 
   function ask(question) {
@@ -137,6 +168,14 @@
           '<button type="button" class="lai-more" hidden>See more</button>';
         if (data.escalate && data.careFormUrl) {
           html += '<div class="lai-escalate">💛 We’d love to walk with you personally. <a href="' + data.careFormUrl + '">Reach our care team here</a>.</div>';
+        }
+        if (data.actions && data.actions.length) {
+          html += '<div class="lai-actions">' + data.actions.map(function (a) {
+            if (a.thumbnail) {
+              return '<a class="lai-media" href="' + escAttr(a.url) + '"><img src="' + escAttr(a.thumbnail) + '" alt="" loading="lazy"/><span>' + escAttr(a.label) + ' ›</span></a>';
+            }
+            return '<a class="lai-btn" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
+          }).join("") + "</div>";
         }
         if (data.sources && data.sources.length) {
           html += '<div class="lai-sources"><b>Sources:</b> ' + data.sources.map(function (s) {
@@ -179,6 +218,8 @@
     // appear inside the nav search dropdown on other pages.
     var target = document.querySelector(TARGET_SEL);
     if (!target) return;
+    // Respect a "Hide" click for the rest of the browser session.
+    try { if (sessionStorage.getItem("laiHidden") === "1") return; } catch (e) {}
     // Every search loads this page with ?query=, so that is the only trigger
     // needed. Submitting a new search reloads the page and re-fires this.
     var params = new URLSearchParams(location.search);

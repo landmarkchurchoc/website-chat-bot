@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { waitUntil } from "@vercel/functions";
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { retrieve } from "@/lib/search";
+import { retrieve, thumbnailFor } from "@/lib/search";
 import { isCrisis, crisisResponse } from "@/lib/crisis";
 import { getEsvPassage } from "@/lib/esv";
 import { logQuestion } from "@/lib/monday";
@@ -48,6 +48,7 @@ interface AnswerResult {
   answer: string;
   confidence: "high" | "medium" | "low";
   sources: { title: string; url: string; type: string }[];
+  actions: { label: string; url: string; thumbnail?: string }[];
   goDeeper: { title: string; url: string; source: string }[];
   escalate: boolean;
 }
@@ -131,6 +132,12 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   const result = JSON.parse(text) as AnswerResult;
   // Belt-and-suspenders on the no-dashes style rule.
   result.answer = result.answer.replace(/\s*[—–]\s*/g, ", ");
+  // Attach page thumbnails (og:image from the crawl) to action links so the
+  // widget can show a clickable image card for sermons, series, podcasts, etc.
+  result.actions = (result.actions ?? []).slice(0, 2).map((a) => ({
+    ...a,
+    thumbnail: thumbnailFor(a.url),
+  }));
   return result;
 }
 
@@ -143,7 +150,7 @@ const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v1"],
+  ["ai-answer-v2"],
   { revalidate: 6 * 60 * 60 }
 );
 

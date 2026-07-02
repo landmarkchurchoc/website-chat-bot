@@ -69,6 +69,7 @@ async function crawlSite() {
         $("script, style, nav, footer, noscript, iframe, svg, form").remove();
         const title = $("title").first().text().trim() || url;
         const description = $('meta[name="description"]').attr("content") || "";
+        const image = $('meta[property="og:image"]').attr("content") || "";
         const body = $("main").length ? $("main") : $("body");
         const text = body
           .text()
@@ -76,7 +77,7 @@ async function crawlSite() {
           .replace(/\n\s*\n\s*/g, "\n\n")
           .trim();
         if (text.length >= 100) {
-          docs.push(...chunk(`${description}\n\n${text}`, { title, url, source: "website" }));
+          docs.push(...chunk(`${description}\n\n${text}`, { title, url, source: "website", image }));
         }
       } catch (e) {
         console.warn(`skip ${url}: ${e.message}`);

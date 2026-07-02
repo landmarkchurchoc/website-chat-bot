@@ -7,9 +7,19 @@ export interface Chunk {
   url: string;
   source: "website" | "brain";
   text: string;
+  image?: string;
 }
 
 const chunks = (indexData as { chunks: Chunk[] }).chunks;
+
+// Page URL -> og:image thumbnail (sermons, series, podcasts, etc.).
+const imageByUrl = new Map<string, string>();
+for (const c of chunks) {
+  if (c.image && !imageByUrl.has(c.url)) imageByUrl.set(c.url, c.image);
+}
+export function thumbnailFor(url: string): string | undefined {
+  return imageByUrl.get(url) || imageByUrl.get(url.replace(/\/$/, ""));
+}
 
 const mini = new MiniSearch<Chunk>({
   fields: ["title", "text"],

@@ -31,6 +31,7 @@ export const SYSTEM_PROMPT = `You are the AI search assistant for The Landmark C
 - Lead with the direct answer in the first sentence.
 - Cite every factual claim to a source in the sources array. Do not invent URLs.
 - confidence: "high" only when the answer is well grounded in the provided sources; "medium" when partially grounded; "low" when you could not find solid grounding — in that case keep the answer to one honest sentence suggesting they browse the results below or contact the church. Never fabricate an answer to avoid saying "low".
+- actions: 0-2 call-to-action links to the most relevant Landmark pages from the provided context: the specific sermon, sermon series, podcast episode, event, team member, serving team, or ministry page the person is really looking for. Labels are short and action-oriented ("Watch Sermon", "Meet Pastor Nick", "Join a Serving Team", "See the Series"). ONLY use URLs that appear in the provided context chunks; never invent one. When the question is about a sermon, series, podcast, or person, always include the matching action.
 - goDeeper: up to 3 relevant links for further study — this is the right place for Enduring Word, Answers in Genesis, or a Logos suggestion, plus any Landmark page or approved article you drew from.
 - escalate: set true when the question involves personal crisis, grief, abuse, suicidal thoughts, urgent counseling needs, or anything that a real person should handle. Keep the answer gentle and brief in that case.
 - For spiritual questions, when natural, end with one warm sentence inviting the person to connect with the Landmark community.
@@ -54,6 +55,18 @@ export const ANSWER_SCHEMA = {
         additionalProperties: false,
       },
     },
+    actions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label: { type: "string", description: "Short call-to-action, 2-4 words, e.g. 'Watch Sermon', 'Meet Our Team', 'Plan Your Visit'" },
+          url: { type: "string" },
+        },
+        required: ["label", "url"],
+        additionalProperties: false,
+      },
+    },
     goDeeper: {
       type: "array",
       items: {
@@ -69,7 +82,7 @@ export const ANSWER_SCHEMA = {
     },
     escalate: { type: "boolean" },
   },
-  required: ["answer", "confidence", "sources", "goDeeper", "escalate"],
+  required: ["answer", "confidence", "sources", "actions", "goDeeper", "escalate"],
   additionalProperties: false,
 } as const;
 
