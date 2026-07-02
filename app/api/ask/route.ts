@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   // Crisis pre-check: never answer these with search results alone.
   if (isCrisis(question)) {
     const result = crisisResponse(careFormUrl);
-    void logQuestion({ question, answer: "[crisis fast-path]", confidence: "high", escalate: true, sources: [] });
+    await logQuestion({ question, answer: "[crisis fast-path]", confidence: "high", escalate: true, sources: [] });
     return NextResponse.json(result, { headers });
   }
 
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
       careFormUrl: result.escalate ? careFormUrl : undefined,
     };
 
-    void logQuestion({
+    await logQuestion({
       question,
       answer: result.answer,
       confidence: result.confidence,
