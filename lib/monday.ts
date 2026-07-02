@@ -1,7 +1,18 @@
-// Optional question logging to a Monday board — the "questions dashboard".
-// Each question becomes an item; the full answer is attached as an update.
-// No-op when MONDAY_API_TOKEN / MONDAY_BOARD_ID are not configured.
+// Question logging to the "AI Search Questions" Monday board — the questions
+// dashboard. Each question becomes an item with review status, confidence,
+// escalation flag, and date; the full answer is attached as an update.
+// Requires MONDAY_API_TOKEN; without it this is a no-op.
 const MONDAY_API = "https://api.monday.com/v2";
+
+// "AI Search Questions" board in the Main workspace
+// https://thelandmarkchurch.monday.com/boards/18420369585
+const DEFAULT_BOARD_ID = "18420369585";
+const COLS = {
+  reviewStatus: "color_mm4wps9g",
+  confidence: "color_mm4w9xe3",
+  escalated: "boolean_mm4w6s6x",
+  askedAt: "date_mm4wkk3j",
+};
 
 async function gql(query: string, variables: Record<string, unknown>) {
   const token = process.env.MONDAY_API_TOKEN;
@@ -21,23 +32,31 @@ export async function logQuestion(entry: {
   escalate: boolean;
   sources: { title: string; url: string }[];
 }) {
-  const boardId = process.env.MONDAY_BOARD_ID;
-  if (!process.env.MONDAY_API_TOKEN || !boardId) return;
+  if (!process.env.MONDAY_API_TOKEN) return;
+  const boardId = process.env.MONDAY_BOARD_ID || DEFAULT_BOARD_ID;
   try {
     const name = (entry.escalate ? "🚨 " : "") + entry.question.slice(0, 240);
+    const confidenceLabel =
+      entry.confidence.charAt(0).toUpperCase() + entry.confidence.slice(1).toLowerCase();
+    const columnValues = JSON.stringify({
+      [COLS.reviewStatus]: { label: entry.escalate ? "Needs Follow-up" : "New" },
+      [COLS.confidence]: { label: confidenceLabel },
+      [COLS.escalated]: entry.escalate ? { checked: "true" } : null,
+      [COLS.askedAt]: { date: new Date().toISOString().slice(0, 10) },
+    });
     const created = await gql(
-      `mutation ($boardId: ID!, $name: String!) {
-        create_item(board_id: $boardId, item_name: $name) { id }
+      `mutation ($boardId: ID!, $name: String!, $vals: JSON!) {
+        create_item(board_id: $boardId, item_name: $name, column_values: $vals, create_labels_if_missing: true) { id }
       }`,
-      { boardId, name: JSON.stringify(name).slice(1, -1) }
+      { boardId, name, vals: columnValues }
     );
     const itemId = created?.data?.create_item?.id;
     if (!itemId) return;
     const body =
       `<b>Question:</b> ${escapeHtml(entry.question)}<br/>` +
-      `<b>Confidence:</b> ${entry.confidence} | <b>Escalated:</b> ${entry.escalate}<br/>` +
-      `<b>Answer:</b><br/>${escapeHtml(entry.answer)}<br/>` +
-      `<b>Sources:</b> ${entry.sources.map((s) => escapeHtml(`${s.title} (${s.url})`)).join("; ")}`;
+      `<b>Confidence:</b> ${entry.confidence} | <b>Escalated:</b> ${entry.escalate}<br/><br/>` +
+      `<b>Answer given:</b><br/>${escapeHtml(entry.answer).replace(/\n/g, "<br/>")}<br/><br/>` +
+      `<b>Sources:</b> ${entry.sources.map((s) => escapeHtml(`${s.title} (${s.url})`)).join("; ") || "none"}`;
     await gql(
       `mutation ($itemId: ID!, $body: String!) {
         create_update(item_id: $itemId, body: $body) { id }

@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Provide a question (max 500 chars)." }, { status: 400, headers });
   }
 
-  const careFormUrl = process.env.CARE_FORM_URL || "https://www.thelandmark.church/contact";
+  const careFormUrl =
+    process.env.CARE_FORM_URL || "https://thelandmark.churchcenter.com/people/forms/583406";
 
   // Crisis pre-check: never answer these with search results alone.
   if (isCrisis(question)) {
