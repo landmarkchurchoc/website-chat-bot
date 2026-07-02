@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse } from "next/server";
 import { retrieve } from "@/lib/search";
 import { isCrisis, crisisResponse } from "@/lib/crisis";
@@ -40,6 +41,12 @@ export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
+// Answer cache: repeated questions return instantly (per warm serverless
+// instance). Keyed by normalized question text.
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const answerCache = new Map<string, { payload: unknown; ts: number }>();
+const normalize = (q: string) => q.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim();
+
 export async function POST(req: NextRequest) {
   const headers = corsHeaders(req);
   let question: string;
@@ -61,8 +68,18 @@ export async function POST(req: NextRequest) {
   // Crisis pre-check: never answer these with search results alone.
   if (isCrisis(question)) {
     const result = crisisResponse(careFormUrl);
-    await logQuestion({ question, answer: "[crisis fast-path]", confidence: "high", escalate: true, sources: [] });
+    waitUntil(logQuestion({ question, answer: "[crisis fast-path]", confidence: "high", escalate: true, sources: [] }));
     return NextResponse.json(result, { headers });
+  }
+
+  // Serve repeated questions from cache (no model call, instant).
+  const cacheKey = normalize(question);
+  const cached = answerCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    waitUntil(
+      logQuestion({ question, answer: "[served from cache]", confidence: "high", escalate: false, sources: [] })
+    );
+    return NextResponse.json(cached.payload, { headers });
   }
 
   const client = new Anthropic();
@@ -72,7 +89,7 @@ export async function POST(req: NextRequest) {
     {
       type: "web_search_20260209",
       name: "web_search",
-      max_uses: 3,
+      max_uses: 2,
       allowed_domains: APPROVED_DOMAINS,
     },
     {
@@ -98,13 +115,14 @@ export async function POST(req: NextRequest) {
   try {
     let response: Anthropic.Message;
     for (let turn = 0; ; turn++) {
+      // No extended thinking + low effort: this is a short grounded summary,
+      // and latency matters more than deliberation here.
       response = await client.messages.create({
         model: MODEL,
-        max_tokens: 4096,
+        max_tokens: 2048,
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        thinking: { type: "adaptive" },
         output_config: {
-          effort: "medium",
+          effort: "low",
           format: { type: "json_schema", schema: ANSWER_SCHEMA },
         },
         tools,
@@ -137,6 +155,8 @@ export async function POST(req: NextRequest) {
       (b): b is Anthropic.TextBlock => b.type === "text"
     )?.text;
     if (!text) throw new Error(`No answer produced (stop_reason: ${response.stop_reason})`);
+    // Belt-and-suspenders on the no-dashes style rule.
+    const dedash = (s: string) => s.replace(/\s*[—–]\s*/g, ", ");
     const result = JSON.parse(text) as {
       answer: string;
       confidence: "high" | "medium" | "low";
@@ -144,19 +164,29 @@ export async function POST(req: NextRequest) {
       goDeeper: { title: string; url: string; source: string }[];
       escalate: boolean;
     };
+    result.answer = dedash(result.answer);
 
     const payload = {
       ...result,
       careFormUrl: result.escalate ? careFormUrl : undefined,
     };
 
-    await logQuestion({
-      question,
-      answer: result.answer,
-      confidence: result.confidence,
-      escalate: result.escalate,
-      sources: result.sources,
-    });
+    // Cache confident, non-escalated answers for repeat questions.
+    if (result.confidence === "high" && !result.escalate) {
+      answerCache.set(cacheKey, { payload, ts: Date.now() });
+    }
+
+    // Log to Monday after the response is sent (zero added latency;
+    // waitUntil keeps the function alive until logging finishes).
+    waitUntil(
+      logQuestion({
+        question,
+        answer: result.answer,
+        confidence: result.confidence,
+        escalate: result.escalate,
+        sources: result.sources,
+      })
+    );
 
     return NextResponse.json(payload, { headers });
   } catch (err) {

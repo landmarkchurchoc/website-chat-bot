@@ -48,17 +48,48 @@
     ".lai-dot{width:6px;height:6px;border-radius:50%;background:var(--swatch--brand-500,#3083fd);animation:laiPulse 1.2s infinite ease-in-out}" +
     ".lai-dot:nth-child(2){animation-delay:.2s}.lai-dot:nth-child(3){animation-delay:.4s}" +
     "@keyframes laiPulse{0%,80%,100%{opacity:.25}40%{opacity:1}}" +
+    ".lai-answer ul{margin:.25rem 0 .75rem;padding-left:1.25rem}" +
+    ".lai-answer li{margin:0 0 .375rem}" +
+    ".lai-quote{margin:.25rem 0 .75rem;padding:.25rem 0 .25rem .875rem;border-left:3px solid var(--swatch--brand-500,#3083fd);font-style:italic;color:var(--swatch--dark-700,#1b2f53)}" +
+    ".lai-clamped{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}" +
+    ".lai-more{margin-top:.5rem;background:none;border:none;padding:0;cursor:pointer;" +
+    "font-family:inherit;font-size:.875rem;font-weight:var(--_typography---font--primary-medium,500);" +
+    "color:var(--swatch--brand-500,#3083fd);text-transform:uppercase;letter-spacing:.05em}" +
+    ".lai-more:hover{text-decoration:underline}" +
     ".lai-disclaimer{margin-top:var(--_spacing---space--3,.875rem);font-size:.75rem;color:#7c8494}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
 
+  function inlineMd(s) {
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<i>$1</i>");
+  }
+
   function mdToHtml(md) {
-    // Minimal, safe Markdown: escape HTML first, then bold/italics/links/paragraphs.
+    // Minimal, safe Markdown: escape HTML first, then handle blockquotes,
+    // bullet lists, bold/italics, links, and paragraphs.
     var esc = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    esc = esc.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    esc = esc.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<i>$1</i>");
-    return esc.split(/\n{2,}/).map(function (p) { return "<p>" + p.replace(/\n/g, "<br/>") + "</p>"; }).join("");
+    var blocks = esc.split(/\n{2,}/);
+    return blocks.map(function (block) {
+      var lines = block.split("\n").filter(function (l) { return l.trim(); });
+      if (!lines.length) return "";
+      var isQuote = lines.every(function (l) { return /^\s*&gt;\s?/.test(l); });
+      if (isQuote) {
+        var q = lines.map(function (l) { return l.replace(/^\s*&gt;\s?/, ""); }).join(" ");
+        return '<blockquote class="lai-quote">' + inlineMd(q) + "</blockquote>";
+      }
+      var isList = lines.every(function (l) { return /^\s*[-*•]\s+/.test(l); });
+      if (isList) {
+        return "<ul>" + lines.map(function (l) {
+          return "<li>" + inlineMd(l.replace(/^\s*[-*•]\s+/, "")) + "</li>";
+        }).join("") + "</ul>";
+      }
+      // Mixed block: render quote/list lines inline within the paragraph flow.
+      return "<p>" + lines.map(function (l) {
+        return inlineMd(l.replace(/^\s*&gt;\s?/, ""));
+      }).join("<br/>") + "</p>";
+    }).join("");
   }
 
   function getCard() {
@@ -92,7 +123,8 @@
       .then(function (data) {
         if (data.error) { card.remove(); return; }
         if (data.confidence === "low" && !data.escalate) { card.remove(); return; } // honesty: no shaky summaries
-        var html = '<div class="lai-answer">' + mdToHtml(data.answer) + "</div>";
+        var html = '<div class="lai-answer lai-clamped">' + mdToHtml(data.answer) + "</div>" +
+          '<button type="button" class="lai-more" hidden>See more</button>';
         if (data.escalate && data.careFormUrl) {
           html += '<div class="lai-escalate">💛 We’d love to walk with you personally. <a href="' + data.careFormUrl + '">Reach our care team here</a>.</div>';
         }
@@ -106,22 +138,30 @@
             return '<a href="' + g.url + '" target="_blank" rel="noopener">' + g.title + " (" + g.source + ")</a>";
           }).join(" · ") + "</div>";
         }
-        html += '<div class="lai-disclaimer">AI-generated summary — always test everything against Scripture. Talk with our pastors any time.</div>';
+        html += '<div class="lai-disclaimer">AI-generated summary. Always test everything against Scripture, and talk with our pastors any time.</div>';
         render(card, html);
+        // Show "See more" only when the answer is actually clamped.
+        var ans = card.querySelector(".lai-answer");
+        var btn = card.querySelector(".lai-more");
+        if (ans && btn && ans.scrollHeight > ans.clientHeight + 4) {
+          btn.hidden = false;
+          btn.addEventListener("click", function () {
+            var open = ans.classList.toggle("lai-clamped");
+            btn.textContent = open ? "See more" : "See less";
+          });
+          ans.classList.add("lai-clamped");
+        }
       })
       .catch(function () { card.remove(); });
   }
 
   function wire() {
-    var input = document.querySelector(INPUT_SEL);
-    if (!input) return;
-    var timer = null;
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { clearTimeout(timer); ask(input.value.trim()); }
-    });
-    var form = input.closest("form");
-    if (form) form.addEventListener("submit", function () { ask(input.value.trim()); });
-    // If the page loaded with a ?query= param (Webflow search results page), answer it.
+    // Only run on the search results page: the answer card should never
+    // appear inside the nav search dropdown on other pages.
+    var target = document.querySelector(TARGET_SEL);
+    if (!target) return;
+    // Every search loads this page with ?query=, so that is the only trigger
+    // needed. Submitting a new search reloads the page and re-fires this.
     var params = new URLSearchParams(location.search);
     var q = params.get("query") || params.get("q");
     if (q) ask(q.trim());
