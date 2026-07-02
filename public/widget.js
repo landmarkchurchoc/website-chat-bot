@@ -22,12 +22,12 @@
     ".lai-card{font-family:var(--_typography---font--primary-family,Gotham,Arial,sans-serif);" +
     "padding:var(--_spacing---space--6,1.5rem);" +
     "margin:0 0 var(--_spacing---space--6,1.5rem);" +
-    "background:var(--swatch--light-100,#fff);color:var(--swatch--dark-900,#070b12)}" +
+    "background:var(--swatch--brand-100,#d6e6ff);color:var(--swatch--dark-900,#070b12)}" +
     ".lai-label{display:flex;align-items:center;gap:.5rem;font-size:.75rem;letter-spacing:.08em;" +
     "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
     "font-weight:var(--_typography---font--primary-medium,500);margin-bottom:var(--_spacing---space--3,.875rem)}" +
     ".lai-answer{font-size:var(--_typography---font-size--text-main,1rem);line-height:1.6;color:var(--swatch--dark-900,#070b12)}" +
-    ".lai-answer p{margin:0 0 1rem}" +
+    ".lai-answer p{margin:0 0 1.25rem}" +
     ".lai-answer p:last-child{margin-bottom:0}" +
     ".lai-answer a{color:var(--swatch--brand-500,#3083fd);text-decoration:underline}" +
     ".lai-answer b{font-weight:var(--_typography---font--primary-bold,700)}" +
@@ -39,14 +39,14 @@
     ".lai-deeper a{color:var(--swatch--brand-500,#3083fd);text-decoration:none}" +
     ".lai-deeper a:hover{text-decoration:underline}" +
     ".lai-escalate{margin-top:var(--_spacing---space--4,1rem);padding:var(--_spacing---space--3,.875rem) var(--_spacing---space--4,1rem);" +
-    "border-radius:var(--radius--xsmall,.5rem);background:var(--swatch--tan,#f6f4f1);" +
-    "border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.12));font-size:.9375rem}" +
+    "border-radius:var(--radius--xsmall,.5rem);background:var(--swatch--light-100,#fff);font-size:.9375rem}" +
     ".lai-escalate a{color:var(--swatch--brand-500,#3083fd)}" +
     ".lai-loading{display:flex;gap:.375rem;align-items:center;color:#7c8494;font-size:.9375rem}" +
     ".lai-dot{width:6px;height:6px;border-radius:50%;background:var(--swatch--brand-500,#3083fd);animation:laiPulse 1.2s infinite ease-in-out}" +
     ".lai-dot:nth-child(2){animation-delay:.2s}.lai-dot:nth-child(3){animation-delay:.4s}" +
     "@keyframes laiPulse{0%,80%,100%{opacity:.25}40%{opacity:1}}" +
-    ".lai-answer ul{list-style:disc outside;margin:.25rem 0 .75rem;padding-left:1.25rem}" +
+    ".lai-answer ul{list-style:disc outside;margin:.25rem 0 1.25rem;padding-left:1.25rem}" +
+    ".lai-answer ul:last-child{margin-bottom:0}" +
     ".lai-answer li{list-style:disc outside;display:list-item;margin:0 0 .375rem}" +
     ".lai-answer li::marker{color:var(--swatch--brand-500,#3083fd)}" +
     ".lai-quote{margin:.25rem 0 .75rem;padding:.25rem 0 .25rem .875rem;border-left:3px solid var(--swatch--brand-500,#3083fd);font-style:italic;color:var(--swatch--dark-700,#1b2f53)}" +
@@ -105,8 +105,9 @@
     if (card) return card;
     var target = document.querySelector(TARGET_SEL);
     card = document.createElement("div");
-    // u-radius-small is the site's Lumos utility class for corner radius.
-    card.className = "lai-card u-radius-small";
+    // Same Lumos utilities the site's cards use (card_primary_group pairs
+    // var(--radius--main) with u-shadow-main).
+    card.className = "lai-card u-radius-main u-shadow-main";
     if (target && target.parentNode) target.parentNode.insertBefore(card, target);
     else if (document.querySelector(INPUT_SEL)) {
       var input = document.querySelector(INPUT_SEL);
