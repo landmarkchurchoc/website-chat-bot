@@ -48,8 +48,9 @@
     ".lai-dot{width:6px;height:6px;border-radius:50%;background:var(--swatch--brand-500,#3083fd);animation:laiPulse 1.2s infinite ease-in-out}" +
     ".lai-dot:nth-child(2){animation-delay:.2s}.lai-dot:nth-child(3){animation-delay:.4s}" +
     "@keyframes laiPulse{0%,80%,100%{opacity:.25}40%{opacity:1}}" +
-    ".lai-answer ul{margin:.25rem 0 .75rem;padding-left:1.25rem}" +
-    ".lai-answer li{margin:0 0 .375rem}" +
+    ".lai-answer ul{list-style:disc outside;margin:.25rem 0 .75rem;padding-left:1.25rem}" +
+    ".lai-answer li{list-style:disc outside;display:list-item;margin:0 0 .375rem}" +
+    ".lai-answer li::marker{color:var(--swatch--brand-500,#3083fd)}" +
     ".lai-quote{margin:.25rem 0 .75rem;padding:.25rem 0 .25rem .875rem;border-left:3px solid var(--swatch--brand-500,#3083fd);font-style:italic;color:var(--swatch--dark-700,#1b2f53)}" +
     ".lai-clamped{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}" +
     ".lai-more{margin-top:.5rem;background:none;border:none;padding:0;cursor:pointer;" +

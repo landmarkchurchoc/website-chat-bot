@@ -11,8 +11,9 @@ import { SYSTEM_PROMPT, ANSWER_SCHEMA, buildUserMessage } from "@/lib/prompt";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Swappable without a code change: set ANSWER_MODEL in Vercel.
-const MODEL = process.env.ANSWER_MODEL || "claude-opus-4-8";
+// Sonnet tier: markedly faster first-answers; the theological guardrails
+// live in the system prompt. Swappable without a code change via ANSWER_MODEL.
+const MODEL = process.env.ANSWER_MODEL || "claude-sonnet-5";
 const APPROVED_DOMAINS = [
   "thelandmark.church",
   "gotquestions.org",
