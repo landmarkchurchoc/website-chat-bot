@@ -42,9 +42,11 @@ export async function OPTIONS(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const headers = corsHeaders(req);
   let question: string;
+  let debug = false;
   try {
     const body = await req.json();
     question = String(body.question ?? "").trim();
+    debug = body.debug === true;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers });
   }
@@ -159,7 +161,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("ask error:", err);
     return NextResponse.json(
-      { error: "Sorry — the answer service is unavailable right now." },
+      {
+        error: "Sorry — the answer service is unavailable right now.",
+        ...(debug ? { detail: String(err) } : {}),
+      },
       { status: 502, headers }
     );
   }
