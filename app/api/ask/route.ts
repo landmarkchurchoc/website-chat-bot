@@ -64,15 +64,19 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
       allowed_domains: APPROVED_DOMAINS,
     },
     {
-      name: "get_esv_passage",
+      name: "get_esv_passages",
       description:
-        "Fetch the exact text of a Bible passage in the ESV translation. Use this whenever you quote Scripture so the wording is accurate. Input a standard reference like 'John 3:16' or 'Romans 8:28-30'.",
+        "Fetch the exact ESV text of one or more Bible passages in a single call. Use this whenever you quote Scripture so the wording is accurate. IMPORTANT: gather ALL the references you plan to quote and request them together in ONE call, e.g. ['John 3:16', 'Romans 8:28-30'].",
       input_schema: {
         type: "object",
         properties: {
-          reference: { type: "string", description: "Bible passage reference, e.g. 'Ephesians 2:8-9'" },
+          references: {
+            type: "array",
+            items: { type: "string" },
+            description: "Bible passage references, e.g. ['Ephesians 2:8-9', 'Psalm 23:1-3']",
+          },
         },
-        required: ["reference"],
+        required: ["references"],
         additionalProperties: false,
       },
       strict: true,
@@ -109,12 +113,13 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
 
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const block of response.content) {
-      if (block.type === "tool_use" && block.name === "get_esv_passage") {
-        const ref = (block.input as { reference: string }).reference;
+      if (block.type === "tool_use" && block.name === "get_esv_passages") {
+        const refs = (block.input as { references: string[] }).references.slice(0, 6);
+        const passages = await Promise.all(refs.map(getEsvPassage));
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,
-          content: await getEsvPassage(ref),
+          content: passages.join("\n\n"),
         });
       }
     }
