@@ -77,7 +77,7 @@ export function buildUserMessage(question: string, chunks: Chunk[]): string {
   const context = chunks
     .map(
       (c, i) =>
-        `<chunk index="${i + 1}" source="${c.source}" title="${c.title}" url="${c.url}">\n${c.text}\n</chunk>`
+        `<chunk index="${i + 1}" source="${c.source}" title="${c.title}" url="${c.url}">\n${c.text.slice(0, 1000)}\n</chunk>`
     )
     .join("\n\n");
   return `Context from Landmark's website and knowledge base:\n\n${context || "(no matching content found)"}\n\nVisitor's question: ${question}`;

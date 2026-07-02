@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { waitUntil } from "@vercel/functions";
+import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { retrieve } from "@/lib/search";
 import { isCrisis, crisisResponse } from "@/lib/crisis";
@@ -10,7 +11,8 @@ import { SYSTEM_PROMPT, ANSWER_SCHEMA, buildUserMessage } from "@/lib/prompt";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MODEL = "claude-opus-4-8";
+// Swappable without a code change: set ANSWER_MODEL in Vercel.
+const MODEL = process.env.ANSWER_MODEL || "claude-opus-4-8";
 const APPROVED_DOMAINS = [
   "thelandmark.church",
   "gotquestions.org",
@@ -41,47 +43,15 @@ export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
-// Answer cache: repeated questions return instantly (per warm serverless
-// instance). Keyed by normalized question text.
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const answerCache = new Map<string, { payload: unknown; ts: number }>();
-const normalize = (q: string) => q.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim();
+interface AnswerResult {
+  answer: string;
+  confidence: "high" | "medium" | "low";
+  sources: { title: string; url: string; type: string }[];
+  goDeeper: { title: string; url: string; source: string }[];
+  escalate: boolean;
+}
 
-export async function POST(req: NextRequest) {
-  const headers = corsHeaders(req);
-  let question: string;
-  let debug = false;
-  try {
-    const body = await req.json();
-    question = String(body.question ?? "").trim();
-    debug = body.debug === true;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers });
-  }
-  if (!question || question.length > 500) {
-    return NextResponse.json({ error: "Provide a question (max 500 chars)." }, { status: 400, headers });
-  }
-
-  const careFormUrl =
-    process.env.CARE_FORM_URL || "https://thelandmark.churchcenter.com/people/forms/583406";
-
-  // Crisis pre-check: never answer these with search results alone.
-  if (isCrisis(question)) {
-    const result = crisisResponse(careFormUrl);
-    waitUntil(logQuestion({ question, answer: "[crisis fast-path]", confidence: "high", escalate: true, sources: [] }));
-    return NextResponse.json(result, { headers });
-  }
-
-  // Serve repeated questions from cache (no model call, instant).
-  const cacheKey = normalize(question);
-  const cached = answerCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-    waitUntil(
-      logQuestion({ question, answer: "[served from cache]", confidence: "high", escalate: false, sources: [] })
-    );
-    return NextResponse.json(cached.payload, { headers });
-  }
-
+async function generateAnswer(question: string): Promise<AnswerResult> {
   const client = new Anthropic();
   const chunks = retrieve(question);
 
@@ -112,69 +82,94 @@ export async function POST(req: NextRequest) {
     { role: "user", content: buildUserMessage(question, chunks) },
   ];
 
-  try {
-    let response: Anthropic.Message;
-    for (let turn = 0; ; turn++) {
-      // No extended thinking + low effort: this is a short grounded summary,
-      // and latency matters more than deliberation here.
-      response = await client.messages.create({
-        model: MODEL,
-        max_tokens: 2048,
-        system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        output_config: {
-          effort: "low",
-          format: { type: "json_schema", schema: ANSWER_SCHEMA },
-        },
-        tools,
-        messages,
-      });
+  let response: Anthropic.Message;
+  for (let turn = 0; ; turn++) {
+    // No extended thinking + low effort: short grounded summaries where
+    // latency matters more than deliberation.
+    response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: ANSWER_SCHEMA },
+      },
+      tools,
+      messages,
+    });
 
-      if (response.stop_reason === "pause_turn") {
-        if (turn >= 6) break;
-        messages = [...messages, { role: "assistant", content: response.content }];
-        continue;
-      }
-      if (response.stop_reason !== "tool_use") break;
+    if (response.stop_reason === "pause_turn") {
       if (turn >= 6) break;
-
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const block of response.content) {
-        if (block.type === "tool_use" && block.name === "get_esv_passage") {
-          const ref = (block.input as { reference: string }).reference;
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: await getEsvPassage(ref),
-          });
-        }
-      }
-      messages = [...messages, { role: "assistant", content: response.content }, { role: "user", content: toolResults }];
+      messages = [...messages, { role: "assistant", content: response.content }];
+      continue;
     }
+    if (response.stop_reason !== "tool_use") break;
+    if (turn >= 6) break;
 
-    const text = response.content.find(
-      (b): b is Anthropic.TextBlock => b.type === "text"
-    )?.text;
-    if (!text) throw new Error(`No answer produced (stop_reason: ${response.stop_reason})`);
-    // Belt-and-suspenders on the no-dashes style rule.
-    const dedash = (s: string) => s.replace(/\s*[—–]\s*/g, ", ");
-    const result = JSON.parse(text) as {
-      answer: string;
-      confidence: "high" | "medium" | "low";
-      sources: { title: string; url: string; type: string }[];
-      goDeeper: { title: string; url: string; source: string }[];
-      escalate: boolean;
-    };
-    result.answer = dedash(result.answer);
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const block of response.content) {
+      if (block.type === "tool_use" && block.name === "get_esv_passage") {
+        const ref = (block.input as { reference: string }).reference;
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: await getEsvPassage(ref),
+        });
+      }
+    }
+    messages = [...messages, { role: "assistant", content: response.content }, { role: "user", content: toolResults }];
+  }
+
+  const text = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
+  if (!text) throw new Error(`No answer produced (stop_reason: ${response.stop_reason})`);
+  const result = JSON.parse(text) as AnswerResult;
+  // Belt-and-suspenders on the no-dashes style rule.
+  result.answer = result.answer.replace(/\s*[—–]\s*/g, ", ");
+  return result;
+}
+
+// Shared cross-instance cache (Vercel Data Cache): repeated questions skip
+// the model entirely. Keyed by normalized question, 6h TTL.
+const normalize = (q: string) =>
+  q.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim();
+const cachedGenerate = unstable_cache(
+  async (_key: string, question: string) => generateAnswer(question),
+  ["ai-answer-v1"],
+  { revalidate: 6 * 60 * 60 }
+);
+
+export async function POST(req: NextRequest) {
+  const headers = corsHeaders(req);
+  let question: string;
+  let debug = false;
+  try {
+    const body = await req.json();
+    question = String(body.question ?? "").trim();
+    debug = body.debug === true;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers });
+  }
+  if (!question || question.length > 500) {
+    return NextResponse.json({ error: "Provide a question (max 500 chars)." }, { status: 400, headers });
+  }
+
+  const careFormUrl =
+    process.env.CARE_FORM_URL || "https://thelandmark.churchcenter.com/people/forms/583406";
+
+  // Crisis pre-check: never answer these with search results alone.
+  if (isCrisis(question)) {
+    const result = crisisResponse(careFormUrl);
+    waitUntil(logQuestion({ question, answer: "[crisis fast-path]", confidence: "high", escalate: true, sources: [] }));
+    return NextResponse.json(result, { headers });
+  }
+
+  try {
+    const result = await cachedGenerate(normalize(question), question);
 
     const payload = {
       ...result,
       careFormUrl: result.escalate ? careFormUrl : undefined,
     };
-
-    // Cache confident, non-escalated answers for repeat questions.
-    if (result.confidence === "high" && !result.escalate) {
-      answerCache.set(cacheKey, { payload, ts: Date.now() });
-    }
 
     // Log to Monday after the response is sent (zero added latency;
     // waitUntil keeps the function alive until logging finishes).
