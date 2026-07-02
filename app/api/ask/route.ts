@@ -21,6 +21,7 @@ const APPROVED_DOMAINS = [
 const DEFAULT_ORIGINS = [
   "https://www.thelandmark.church",
   "https://thelandmark.church",
+  "https://landmark-church-4bcf27.webflow.io", // Webflow staging
   "http://localhost:3000",
 ];
 

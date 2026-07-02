@@ -17,22 +17,38 @@
   var INPUT_SEL = (script && script.getAttribute("data-input")) || 'input[type="search"]';
   var TARGET_SEL = (script && script.getAttribute("data-target")) || "[data-ai-answer]";
 
+  // Styled with the site's Lumos design tokens (falls back to the same values).
   var css =
-    ".lai-card{font-family:inherit;border:1px solid #e2e2e2;border-radius:12px;padding:20px 22px;margin:0 0 24px;background:#fafaf8;box-shadow:0 1px 4px rgba(0,0,0,.05)}" +
-    ".lai-label{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8a7350;font-weight:600;margin-bottom:10px}" +
-    ".lai-answer{font-size:15px;line-height:1.65;color:#222}" +
-    ".lai-answer p{margin:0 0 10px}" +
-    ".lai-answer a{color:#8a5a2b;text-decoration:underline}" +
-    ".lai-sources{margin-top:12px;padding-top:10px;border-top:1px dashed #ddd;font-size:13px;color:#555}" +
-    ".lai-sources a{color:#8a5a2b;margin-right:12px;text-decoration:none}" +
+    ".lai-card{font-family:var(--_typography---font--primary-family,Gotham,Arial,sans-serif);" +
+    "border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.2));" +
+    "border-radius:var(--radius--small,.75rem);" +
+    "padding:var(--_spacing---space--6,1.5rem);" +
+    "margin:0 0 var(--_spacing---space--6,1.5rem);" +
+    "background:var(--swatch--light-100,#fff);color:var(--swatch--dark-900,#070b12)}" +
+    ".lai-label{display:flex;align-items:center;gap:.5rem;font-size:.75rem;letter-spacing:.08em;" +
+    "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
+    "font-weight:var(--_typography---font--primary-medium,500);margin-bottom:var(--_spacing---space--3,.875rem)}" +
+    ".lai-answer{font-size:var(--_typography---font-size--text-main,1rem);line-height:1.6;color:var(--swatch--dark-900,#070b12)}" +
+    ".lai-answer p{margin:0 0 .75rem}" +
+    ".lai-answer p:last-child{margin-bottom:0}" +
+    ".lai-answer a{color:var(--swatch--brand-500,#3083fd);text-decoration:underline}" +
+    ".lai-answer b{font-weight:var(--_typography---font--primary-bold,700)}" +
+    ".lai-sources{margin-top:var(--_spacing---space--4,1rem);padding-top:var(--_spacing---space--3,.875rem);" +
+    "border-top:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.12));font-size:.875rem;color:#7c8494}" +
+    ".lai-sources a{color:var(--swatch--brand-500,#3083fd);margin-right:.875rem;text-decoration:none}" +
     ".lai-sources a:hover{text-decoration:underline}" +
-    ".lai-deeper{margin-top:8px;font-size:13px;color:#555}" +
-    ".lai-escalate{margin-top:12px;padding:12px 14px;border-radius:8px;background:#fdf3e7;border:1px solid #eddcc3;font-size:14px}" +
-    ".lai-loading{display:flex;gap:6px;align-items:center;color:#777;font-size:14px}" +
-    ".lai-dot{width:6px;height:6px;border-radius:50%;background:#b09468;animation:laiPulse 1.2s infinite ease-in-out}" +
+    ".lai-deeper{margin-top:.5rem;font-size:.875rem;color:#7c8494}" +
+    ".lai-deeper a{color:var(--swatch--brand-500,#3083fd);text-decoration:none}" +
+    ".lai-deeper a:hover{text-decoration:underline}" +
+    ".lai-escalate{margin-top:var(--_spacing---space--4,1rem);padding:var(--_spacing---space--3,.875rem) var(--_spacing---space--4,1rem);" +
+    "border-radius:var(--radius--xsmall,.5rem);background:var(--swatch--tan,#f6f4f1);" +
+    "border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.12));font-size:.9375rem}" +
+    ".lai-escalate a{color:var(--swatch--brand-500,#3083fd)}" +
+    ".lai-loading{display:flex;gap:.375rem;align-items:center;color:#7c8494;font-size:.9375rem}" +
+    ".lai-dot{width:6px;height:6px;border-radius:50%;background:var(--swatch--brand-500,#3083fd);animation:laiPulse 1.2s infinite ease-in-out}" +
     ".lai-dot:nth-child(2){animation-delay:.2s}.lai-dot:nth-child(3){animation-delay:.4s}" +
     "@keyframes laiPulse{0%,80%,100%{opacity:.25}40%{opacity:1}}" +
-    ".lai-disclaimer{margin-top:10px;font-size:11px;color:#999}";
+    ".lai-disclaimer{margin-top:var(--_spacing---space--3,.875rem);font-size:.75rem;color:#7c8494}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
@@ -60,8 +76,7 @@
   }
 
   function render(card, html) {
-    card.innerHTML =
-      '<div class="lai-label">✦ Answer from The Landmark Church</div>' + html;
+    card.innerHTML = '<div class="lai-label">✦ Landmark Answer</div>' + html;
   }
 
   function ask(question) {
