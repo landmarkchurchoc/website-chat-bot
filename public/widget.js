@@ -20,8 +20,6 @@
   // Styled with the site's Lumos design tokens (falls back to the same values).
   var css =
     ".lai-card{font-family:var(--_typography---font--primary-family,Gotham,Arial,sans-serif);" +
-    "border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.2));" +
-    "border-radius:var(--radius--small,.75rem);" +
     "padding:var(--_spacing---space--6,1.5rem);" +
     "margin:0 0 var(--_spacing---space--6,1.5rem);" +
     "background:var(--swatch--light-100,#fff);color:var(--swatch--dark-900,#070b12)}" +
@@ -29,7 +27,7 @@
     "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
     "font-weight:var(--_typography---font--primary-medium,500);margin-bottom:var(--_spacing---space--3,.875rem)}" +
     ".lai-answer{font-size:var(--_typography---font-size--text-main,1rem);line-height:1.6;color:var(--swatch--dark-900,#070b12)}" +
-    ".lai-answer p{margin:0 0 .75rem}" +
+    ".lai-answer p{margin:0 0 1rem}" +
     ".lai-answer p:last-child{margin-bottom:0}" +
     ".lai-answer a{color:var(--swatch--brand-500,#3083fd);text-decoration:underline}" +
     ".lai-answer b{font-weight:var(--_typography---font--primary-bold,700)}" +
@@ -68,29 +66,38 @@
   }
 
   function mdToHtml(md) {
-    // Minimal, safe Markdown: escape HTML first, then handle blockquotes,
-    // bullet lists, bold/italics, links, and paragraphs.
+    // Minimal, safe Markdown: escape HTML first, then walk line by line.
+    // Consecutive bullet lines group into a list, consecutive "> " lines into
+    // a blockquote, and every other non-empty line is its own paragraph (so
+    // single newlines still read as paragraph breaks).
     var esc = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    var blocks = esc.split(/\n{2,}/);
-    return blocks.map(function (block) {
-      var lines = block.split("\n").filter(function (l) { return l.trim(); });
-      if (!lines.length) return "";
-      var isQuote = lines.every(function (l) { return /^\s*&gt;\s?/.test(l); });
-      if (isQuote) {
-        var q = lines.map(function (l) { return l.replace(/^\s*&gt;\s?/, ""); }).join(" ");
-        return '<blockquote class="lai-quote">' + inlineMd(q) + "</blockquote>";
+    var html = "", listBuf = [], quoteBuf = [];
+    function flush() {
+      if (listBuf.length) {
+        html += "<ul>" + listBuf.map(function (t) { return "<li>" + inlineMd(t) + "</li>"; }).join("") + "</ul>";
+        listBuf = [];
       }
-      var isList = lines.every(function (l) { return /^\s*[-*•]\s+/.test(l); });
-      if (isList) {
-        return "<ul>" + lines.map(function (l) {
-          return "<li>" + inlineMd(l.replace(/^\s*[-*•]\s+/, "")) + "</li>";
-        }).join("") + "</ul>";
+      if (quoteBuf.length) {
+        html += '<blockquote class="lai-quote">' + inlineMd(quoteBuf.join(" ")) + "</blockquote>";
+        quoteBuf = [];
       }
-      // Mixed block: render quote/list lines inline within the paragraph flow.
-      return "<p>" + lines.map(function (l) {
-        return inlineMd(l.replace(/^\s*&gt;\s?/, ""));
-      }).join("<br/>") + "</p>";
-    }).join("");
+    }
+    esc.split("\n").forEach(function (line) {
+      var t = line.trim();
+      if (!t) { flush(); return; }
+      if (/^[-*•]\s+/.test(t)) {
+        if (quoteBuf.length) flush();
+        listBuf.push(t.replace(/^[-*•]\s+/, ""));
+      } else if (/^&gt;\s?/.test(t)) {
+        if (listBuf.length) flush();
+        quoteBuf.push(t.replace(/^&gt;\s?/, ""));
+      } else {
+        flush();
+        html += "<p>" + inlineMd(t) + "</p>";
+      }
+    });
+    flush();
+    return html;
   }
 
   function getCard() {
@@ -98,7 +105,8 @@
     if (card) return card;
     var target = document.querySelector(TARGET_SEL);
     card = document.createElement("div");
-    card.className = "lai-card";
+    // u-radius-small is the site's Lumos utility class for corner radius.
+    card.className = "lai-card u-radius-small";
     if (target && target.parentNode) target.parentNode.insertBefore(card, target);
     else if (document.querySelector(INPUT_SEL)) {
       var input = document.querySelector(INPUT_SEL);
@@ -141,16 +149,25 @@
         }
         html += '<div class="lai-disclaimer">AI-generated summary. Always test everything against Scripture, and talk with our pastors any time.</div>';
         render(card, html);
-        // Show "See more" only when the answer is actually clamped.
+        // Show "See more" only when clamping actually hides content:
+        // compare the real unclamped height against the clamped height
+        // (scrollHeight alone is fooled by paragraph margins).
         var ans = card.querySelector(".lai-answer");
         var btn = card.querySelector(".lai-more");
-        if (ans && btn && ans.scrollHeight > ans.clientHeight + 4) {
-          btn.hidden = false;
-          btn.addEventListener("click", function () {
-            var open = ans.classList.toggle("lai-clamped");
-            btn.textContent = open ? "See more" : "See less";
-          });
+        if (ans && btn) {
+          ans.classList.remove("lai-clamped");
+          var fullH = ans.getBoundingClientRect().height;
           ans.classList.add("lai-clamped");
+          var clampedH = ans.getBoundingClientRect().height;
+          if (fullH > clampedH + 8) {
+            btn.hidden = false;
+            btn.addEventListener("click", function () {
+              var nowClamped = ans.classList.toggle("lai-clamped");
+              btn.textContent = nowClamped ? "See more" : "See less";
+            });
+          } else {
+            ans.classList.remove("lai-clamped");
+          }
         }
       })
       .catch(function () { card.remove(); });
