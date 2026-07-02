@@ -1,0 +1,25 @@
+{
+  "name": "landmark-ai-search",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "ingest": "node scripts/ingest.mjs",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.1",
+    "cheerio": "^1.0.0",
+    "minisearch": "^7.1.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "typescript": "^5",
+    "undici": "^8.6.0"
+  }
+}
