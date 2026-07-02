@@ -132,8 +132,11 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
 // the model entirely. Keyed by normalized question, 6h TTL.
 const normalize = (q: string) =>
   q.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim();
+// The normalized question is the ONLY argument: arguments form the cache key,
+// so passing the raw question too would defeat the cache ("Baptism?" vs
+// "baptism"). The normalized text is what gets answered; it reads fine.
 const cachedGenerate = unstable_cache(
-  async (_key: string, question: string) => generateAnswer(question),
+  async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
   ["ai-answer-v1"],
   { revalidate: 6 * 60 * 60 }
 );
@@ -164,7 +167,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await cachedGenerate(normalize(question), question);
+    const result = await cachedGenerate(normalize(question));
 
     const payload = {
       ...result,
