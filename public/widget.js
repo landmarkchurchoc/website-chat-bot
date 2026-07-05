@@ -23,11 +23,16 @@
     "padding:var(--_spacing---space--6,1.5rem);" +
     "margin:0 0 var(--_spacing---space--6,1.5rem);" +
     "background:var(--swatch--brand-100,#d6e6ff);color:var(--swatch--dark-900,#070b12);position:relative}" +
-    ".lai-toggle{position:absolute;top:var(--_spacing---space--4,1rem);right:var(--_spacing---space--4,1rem);" +
-    "background:none;border:none;padding:.25rem;cursor:pointer;font-family:inherit;font-size:.7rem;" +
-    "letter-spacing:.06em;text-transform:uppercase;color:#7c8494}" +
-    ".lai-toggle:hover{color:var(--swatch--dark-700,#1b2f53)}" +
-    ".lai-card.lai-collapsed>*:not(.lai-label):not(.lai-toggle){display:none}" +
+    ".lai-topright{position:absolute;top:var(--_spacing---space--4,1rem);right:var(--_spacing---space--4,1rem);display:flex;gap:.875rem}" +
+    ".lai-topright button{background:none;border:none;padding:.25rem 0;cursor:pointer;font-family:inherit;font-size:.7rem;" +
+    "letter-spacing:.06em;text-transform:uppercase;color:#7c8494;transition:color .2s}" +
+    ".lai-topright button:hover{color:var(--swatch--dark-700,#1b2f53)}" +
+    ".lai-fb{margin-top:var(--_spacing---space--4,1rem)}" +
+    ".lai-fb textarea{width:100%;box-sizing:border-box;min-height:5rem;padding:.75rem;border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.2));" +
+    "border-radius:var(--radius--xsmall,.5rem);font-family:inherit;font-size:.9375rem;color:var(--swatch--dark-900,#070b12);background:var(--swatch--light-100,#fff);resize:vertical}" +
+    ".lai-fb-row{display:flex;gap:.75rem;margin-top:.625rem;align-items:center}" +
+    ".lai-fb-note{font-size:.8125rem;color:#7c8494}" +
+    ".lai-card.lai-collapsed>*:not(.lai-label):not(.lai-topright){display:none}" +
     ".lai-card.lai-collapsed .lai-label{margin-bottom:0}" +
     ".lai-label{display:flex;align-items:center;gap:.5rem;font-size:.75rem;letter-spacing:.08em;" +
     "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
@@ -148,21 +153,68 @@
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
 
-  function render(card, html) {
+  var lastQuestion = "";
+
+  function render(card, html, withControls) {
     card.classList.remove("lai-collapsed");
     card.innerHTML =
       '<div class="lai-label">✦ Landmark Answer</div>' +
-      '<button type="button" class="lai-toggle" title="Collapse this AI summary">Collapse</button>' +
+      (withControls
+        ? '<div class="lai-topright">' +
+          '<button type="button" class="lai-feedback" title="Tell us about your experience">Give Feedback</button>' +
+          '<button type="button" class="lai-toggle" title="Collapse this AI summary">Collapse</button>' +
+          "</div>"
+        : "") +
       html;
     var toggle = card.querySelector(".lai-toggle");
     if (toggle) toggle.addEventListener("click", function () {
       var collapsed = card.classList.toggle("lai-collapsed");
       toggle.textContent = collapsed ? "Show" : "Collapse";
     });
+    var fb = card.querySelector(".lai-feedback");
+    if (fb) fb.addEventListener("click", function () { openFeedback(card); });
+  }
+
+  function openFeedback(card) {
+    if (card.querySelector(".lai-fb")) return;
+    var box = document.createElement("div");
+    box.className = "lai-fb";
+    box.innerHTML =
+      '<textarea maxlength="3000" placeholder="Tell us what was helpful, wrong, or missing…"></textarea>' +
+      '<div class="lai-fb-row">' +
+      '<button type="button" class="lai-btn lai-fb-send">Send</button>' +
+      '<button type="button" class="lai-btn2 lai-fb-cancel">Cancel</button>' +
+      "</div>";
+    card.appendChild(box);
+    var ta = box.querySelector("textarea");
+    ta.focus();
+    box.querySelector(".lai-fb-cancel").addEventListener("click", function () { box.remove(); });
+    box.querySelector(".lai-fb-send").addEventListener("click", function () {
+      var msg = ta.value.trim();
+      if (!msg) return;
+      box.innerHTML = '<div class="lai-fb-note">Sending…</div>';
+      fetch(ENDPOINT.replace(/\/ask\/?$/, "/feedback"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, question: lastQuestion, page: location.href }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          box.innerHTML = '<div class="lai-fb-note">' +
+            (d.ok ? "Thank you! Your feedback helps us make this better. 💛" : "Sorry, something went wrong sending that. Please try again later.") +
+            "</div>";
+          setTimeout(function () { box.remove(); }, 5000);
+        })
+        .catch(function () {
+          box.innerHTML = '<div class="lai-fb-note">Sorry, something went wrong sending that.</div>';
+          setTimeout(function () { box.remove(); }, 5000);
+        });
+    });
   }
 
   function ask(question) {
     if (!question || question.length < 8) return; // too short to be a question
+    lastQuestion = question;
     var card = getCard();
     render(card, '<div class="lai-loading"><span class="lai-dot"></span><span class="lai-dot"></span><span class="lai-dot"></span> Finding an answer…</div>');
     fetch(ENDPOINT, {
@@ -209,7 +261,7 @@
           }).join(" · ") + "</div>";
         }
         html += '<div class="lai-disclaimer">AI-generated summary. Always test everything against Scripture, and talk with our pastors any time.</div>';
-        render(card, html);
+        render(card, html, true);
         // Show "See more" only when clamping actually hides content:
         // compare the real unclamped height against the clamped height
         // (scrollHeight alone is fooled by paragraph margins).

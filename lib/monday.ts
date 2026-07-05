@@ -71,3 +71,37 @@ export async function logQuestion(entry: {
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+// "AI Answer Feedback" board — visitor-submitted feedback from the widget.
+// https://thelandmarkchurch.monday.com/boards/18420598077
+const FEEDBACK_BOARD_ID = "18420598077";
+const FEEDBACK_COLS = { triage: "color_mm4znc64", submitted: "date_mm4z5xv" };
+
+export async function logFeedback(entry: { message: string; question?: string; page?: string }) {
+  if (!process.env.MONDAY_API_TOKEN) return false;
+  const boardId = process.env.MONDAY_FEEDBACK_BOARD_ID || FEEDBACK_BOARD_ID;
+  const name = entry.message.slice(0, 240);
+  const columnValues = JSON.stringify({
+    [FEEDBACK_COLS.triage]: { label: "New" },
+    [FEEDBACK_COLS.submitted]: { date: new Date().toISOString().slice(0, 10) },
+  });
+  const created = await gql(
+    `mutation ($boardId: ID!, $name: String!, $vals: JSON!) {
+      create_item(board_id: $boardId, item_name: $name, column_values: $vals, create_labels_if_missing: true) { id }
+    }`,
+    { boardId, name, vals: columnValues }
+  );
+  const itemId = created?.data?.create_item?.id;
+  if (!itemId) return false;
+  const body =
+    `<b>Feedback:</b><br/>${escapeHtml(entry.message).replace(/\n/g, "<br/>")}<br/><br/>` +
+    (entry.question ? `<b>Question they had asked:</b> ${escapeHtml(entry.question)}<br/>` : "") +
+    (entry.page ? `<b>Page:</b> ${escapeHtml(entry.page)}` : "");
+  await gql(
+    `mutation ($itemId: ID!, $body: String!) {
+      create_update(item_id: $itemId, body: $body) { id }
+    }`,
+    { itemId, body }
+  );
+  return true;
+}
