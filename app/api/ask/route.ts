@@ -136,15 +136,27 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   // (e.g. the "latest sermon" teaser lives there), look up the quoted title
   // from the answer in the search index and link the specific page instead.
   const HOME = /^https?:\/\/(www\.)?thelandmark\.church\/?$/;
-  result.actions = (result.actions ?? []).slice(0, 2).map((a) => {
-    let url = a.url;
-    if (HOME.test(url)) {
-      const quoted = result.answer.match(/[""]([^""]{4,90})[""]/);
-      const page = findPage(quoted?.[1] || a.label);
-      if (page && !HOME.test(page.url)) url = page.url;
-    }
-    return { ...a, url, thumbnail: thumbnailFor(url) };
-  });
+  let quotedUsed = false;
+  const seenUrls = new Set<string>();
+  result.actions = (result.actions ?? [])
+    .slice(0, 2)
+    .map((a) => {
+      let url = a.url;
+      if (HOME.test(url)) {
+        // The quoted title from the answer resolves at most ONE action (the
+        // content it names); other homepage links resolve by their own label.
+        const quoted = quotedUsed ? null : result.answer.match(/[""]([^""]{4,90})[""]/);
+        if (quoted) quotedUsed = true;
+        const page = findPage(quoted?.[1] || a.label);
+        if (page && !HOME.test(page.url)) url = page.url;
+      }
+      return { ...a, url, thumbnail: thumbnailFor(url) };
+    })
+    .filter((a) => {
+      if (seenUrls.has(a.url)) return false;
+      seenUrls.add(a.url);
+      return true;
+    });
   return result;
 }
 
@@ -157,7 +169,7 @@ const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v5"],
+  ["ai-answer-v6"],
   { revalidate: 6 * 60 * 60 }
 );
 
