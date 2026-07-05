@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { waitUntil } from "@vercel/functions";
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { retrieve, thumbnailFor } from "@/lib/search";
+import { retrieve, thumbnailFor, findPage } from "@/lib/search";
 import { isCrisis, crisisResponse } from "@/lib/crisis";
 import { getEsvPassage } from "@/lib/esv";
 import { logQuestion } from "@/lib/monday";
@@ -132,12 +132,19 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   const result = JSON.parse(text) as AnswerResult;
   // Belt-and-suspenders on the no-dashes style rule.
   result.answer = result.answer.replace(/\s*[—–]\s*/g, ", ");
-  // Attach page thumbnails (og:image from the crawl) to action links so the
-  // widget can show a clickable image card for sermons, series, podcasts, etc.
-  result.actions = (result.actions ?? []).slice(0, 2).map((a) => ({
-    ...a,
-    thumbnail: thumbnailFor(a.url),
-  }));
+  // Resolve vague action links: when the model could only cite the homepage
+  // (e.g. the "latest sermon" teaser lives there), look up the quoted title
+  // from the answer in the search index and link the specific page instead.
+  const HOME = /^https?:\/\/(www\.)?thelandmark\.church\/?$/;
+  result.actions = (result.actions ?? []).slice(0, 2).map((a) => {
+    let url = a.url;
+    if (HOME.test(url)) {
+      const quoted = result.answer.match(/[""]([^""]{4,90})[""]/);
+      const page = findPage(quoted?.[1] || a.label);
+      if (page && !HOME.test(page.url)) url = page.url;
+    }
+    return { ...a, url, thumbnail: thumbnailFor(url) };
+  });
   return result;
 }
 
@@ -150,7 +157,7 @@ const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v3"],
+  ["ai-answer-v4"],
   { revalidate: 6 * 60 * 60 }
 );
 

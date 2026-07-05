@@ -21,6 +21,12 @@ export function thumbnailFor(url: string): string | undefined {
   return imageByUrl.get(url) || imageByUrl.get(url.replace(/\/$/, ""));
 }
 
+/** Best-matching page for a title/phrase (used to resolve vague action links). */
+export function findPage(query: string): { url: string; title: string } | undefined {
+  const hit = mini.search(query)[0];
+  return hit ? { url: hit.url, title: hit.title } : undefined;
+}
+
 const mini = new MiniSearch<Chunk>({
   fields: ["title", "text"],
   storeFields: ["title", "url", "source", "text"],
