@@ -23,10 +23,12 @@
     "padding:var(--_spacing---space--6,1.5rem);" +
     "margin:0 0 var(--_spacing---space--6,1.5rem);" +
     "background:var(--swatch--brand-100,#d6e6ff);color:var(--swatch--dark-900,#070b12);position:relative}" +
-    ".lai-hide{position:absolute;top:var(--_spacing---space--4,1rem);right:var(--_spacing---space--4,1rem);" +
+    ".lai-toggle{position:absolute;top:var(--_spacing---space--4,1rem);right:var(--_spacing---space--4,1rem);" +
     "background:none;border:none;padding:.25rem;cursor:pointer;font-family:inherit;font-size:.7rem;" +
     "letter-spacing:.06em;text-transform:uppercase;color:#7c8494}" +
-    ".lai-hide:hover{color:var(--swatch--dark-700,#1b2f53)}" +
+    ".lai-toggle:hover{color:var(--swatch--dark-700,#1b2f53)}" +
+    ".lai-card.lai-collapsed>*:not(.lai-label):not(.lai-toggle){display:none}" +
+    ".lai-card.lai-collapsed .lai-label{margin-bottom:0}" +
     ".lai-label{display:flex;align-items:center;gap:.5rem;font-size:.75rem;letter-spacing:.08em;" +
     "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
     "font-weight:var(--_typography---font--primary-medium,500);margin-bottom:var(--_spacing---space--3,.875rem)}" +
@@ -49,6 +51,13 @@
     "border-radius:var(--radius--small,.75rem);font-size:.8125rem;font-weight:var(--_typography---font--primary-medium,500);" +
     "letter-spacing:.05em;text-transform:uppercase;transition:background-color .2s}" +
     ".lai-btn:hover{background:var(--swatch--dark-700,#1b2f53);color:var(--swatch--light-100,#fff)}" +
+    ".lai-btn2{display:inline-flex;align-items:center;justify-content:center;background:transparent;" +
+    "border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.2));color:var(--swatch--dark-900,#070b12);" +
+    "text-decoration:none;padding:.625rem 1.125rem;border-radius:var(--radius--small,.75rem);font-size:.8125rem;" +
+    "font-weight:var(--_typography---font--primary-medium,500);letter-spacing:.05em;text-transform:uppercase;transition:all .2s}" +
+    ".lai-btn2:hover{background:var(--swatch--dark-900,#070b12);color:var(--swatch--light-100,#fff);border-color:var(--swatch--dark-900,#070b12)}" +
+    ".lai-actions-sub{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem}" +
+    ".lai-actions-sub .lai-btn2{width:16rem;max-width:100%}" +
     ".lai-media{display:block;width:16rem;max-width:100%;text-decoration:none;border-radius:var(--radius--small,.75rem);" +
     "overflow:hidden;background:var(--swatch--light-100,#fff);transition:transform .2s;box-shadow:0 2px 12px #00000014}" +
     ".lai-media:hover{transform:translateY(-2px)}" +
@@ -140,14 +149,15 @@
   }
 
   function render(card, html) {
+    card.classList.remove("lai-collapsed");
     card.innerHTML =
       '<div class="lai-label">✦ Landmark Answer</div>' +
-      '<button type="button" class="lai-hide" title="Hide this AI summary">Hide</button>' +
+      '<button type="button" class="lai-toggle" title="Collapse this AI summary">Collapse</button>' +
       html;
-    var hide = card.querySelector(".lai-hide");
-    if (hide) hide.addEventListener("click", function () {
-      try { sessionStorage.setItem("laiHidden", "1"); } catch (e) {}
-      card.remove();
+    var toggle = card.querySelector(".lai-toggle");
+    if (toggle) toggle.addEventListener("click", function () {
+      var collapsed = card.classList.toggle("lai-collapsed");
+      toggle.textContent = collapsed ? "Show" : "Collapse";
     });
   }
 
@@ -170,12 +180,23 @@
           html += '<div class="lai-escalate">💛 We’d love to walk with you personally. <a href="' + data.careFormUrl + '">Reach our care team here</a>.</div>';
         }
         if (data.actions && data.actions.length) {
-          html += '<div class="lai-actions">' + data.actions.map(function (a) {
-            if (a.thumbnail) {
+          var media = data.actions.filter(function (a) { return a.thumbnail; });
+          var plain = data.actions.filter(function (a) { return !a.thumbnail; });
+          if (media.length) {
+            html += '<div class="lai-actions">' + media.map(function (a) {
               return '<a class="lai-media" href="' + escAttr(a.url) + '"><img src="' + escAttr(a.thumbnail) + '" alt="" loading="lazy"/><span>' + escAttr(a.label) + ' ›</span></a>';
+            }).join("") + "</div>";
+            // Secondary links sit as quiet outline buttons under the thumbnail.
+            if (plain.length) {
+              html += '<div class="lai-actions-sub">' + plain.map(function (a) {
+                return '<a class="lai-btn2" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
+              }).join("") + "</div>";
             }
-            return '<a class="lai-btn" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
-          }).join("") + "</div>";
+          } else if (plain.length) {
+            html += '<div class="lai-actions">' + plain.map(function (a) {
+              return '<a class="lai-btn" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
+            }).join("") + "</div>";
+          }
         }
         if (data.sources && data.sources.length) {
           html += '<div class="lai-sources"><b>Sources:</b> ' + data.sources.map(function (s) {
@@ -218,8 +239,6 @@
     // appear inside the nav search dropdown on other pages.
     var target = document.querySelector(TARGET_SEL);
     if (!target) return;
-    // Respect a "Hide" click for the rest of the browser session.
-    try { if (sessionStorage.getItem("laiHidden") === "1") return; } catch (e) {}
     // Every search loads this page with ?query=, so that is the only trigger
     // needed. Submitting a new search reloads the page and re-fires this.
     var params = new URLSearchParams(location.search);
