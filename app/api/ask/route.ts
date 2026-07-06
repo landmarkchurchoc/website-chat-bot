@@ -136,26 +136,30 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   // (e.g. the "latest sermon" teaser lives there), look up the quoted title
   // from the answer in the search index and link the specific page instead.
   const HOME = /^https?:\/\/(www\.)?thelandmark\.church\/?$/;
+  // Labels that clearly point at a piece of content the answer names.
+  const CONTENT_LABEL = /watch|listen|read|see|sermon|series|episode|notes|message|meet/i;
+  // Thumbnails only for real content pages; generic pages (contact, visit,
+  // beliefs, ...) render as buttons even though they have an og:image.
+  const THUMB_PATHS = /\/(sermons|sermon-series|sermon-notes|podcast|blog|events|team|missions|groups)\//;
   let quotedUsed = false;
   const seenUrls = new Set<string>();
   result.actions = (result.actions ?? [])
     .slice(0, 2)
-    .map((a) => {
+    .flatMap((a) => {
       let url = a.url;
       if (HOME.test(url)) {
-        // The quoted title from the answer resolves at most ONE action (the
-        // content it names); other homepage links resolve by their own label.
+        // A homepage link is never useful. If the label names content and the
+        // answer quotes a title, resolve to that page; otherwise drop it.
         const quoted = quotedUsed ? null : result.answer.match(/[""]([^""]{4,90})[""]/);
-        if (quoted) quotedUsed = true;
-        const page = findPage(quoted?.[1] || a.label);
-        if (page && !HOME.test(page.url)) url = page.url;
+        if (!quoted || !CONTENT_LABEL.test(a.label)) return [];
+        quotedUsed = true;
+        const page = findPage(quoted[1]);
+        if (!page || HOME.test(page.url)) return [];
+        url = page.url;
       }
-      return { ...a, url, thumbnail: thumbnailFor(url) };
-    })
-    .filter((a) => {
-      if (seenUrls.has(a.url)) return false;
-      seenUrls.add(a.url);
-      return true;
+      if (seenUrls.has(url)) return [];
+      seenUrls.add(url);
+      return [{ ...a, url, thumbnail: THUMB_PATHS.test(url) ? thumbnailFor(url) : undefined }];
     });
   return result;
 }
@@ -169,7 +173,7 @@ const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v6"],
+  ["ai-answer-v7"],
   { revalidate: 6 * 60 * 60 }
 );
 

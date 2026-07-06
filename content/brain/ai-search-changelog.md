@@ -61,3 +61,16 @@ change and each scheduled feedback review.
   replaced Hide; link hovers to dark-700.
 - "Give Feedback" inline form on the card → AI Answer Feedback Monday board.
 - This changelog created; recurring feedback-review schedule established.
+
+### 2026-07-05: Feedback-driven polish (Eric's review)
+- Actions are strictly relevance-gated: empty unless the question is about
+  something with its own page; generic homepage links dropped (never
+  relabeled/rewritten, fixing a label/URL mismatch); thumbnails limited to
+  real content paths (sermons, series, notes, podcast, blog, events, team,
+  missions, groups), so generic pages render as buttons.
+- Accuracy rule added: describe people's roles only as stated, never infer
+  duties (e.g. Connor Alvis connects people INTO Landmark 101/201/301, he
+  does not teach them). Brain updates from staff remain the deeper fix.
+- UX: smooth accordion collapse/expand (matches site FAQ feel), +/- icon on
+  Show/Collapse, label and control vertically centered when collapsed,
+  Give Feedback moved to a blue link beside the bottom disclaimer.

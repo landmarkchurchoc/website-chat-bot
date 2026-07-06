@@ -23,17 +23,26 @@
     "padding:var(--_spacing---space--6,1.5rem);" +
     "margin:0 0 var(--_spacing---space--6,1.5rem);" +
     "background:var(--swatch--brand-100,#d6e6ff);color:var(--swatch--dark-900,#070b12);position:relative}" +
-    ".lai-topright{position:absolute;top:var(--_spacing---space--4,1rem);right:var(--_spacing---space--4,1rem);display:flex;gap:.875rem}" +
+    ".lai-topright{position:absolute;top:var(--_spacing---space--6,1.5rem);right:var(--_spacing---space--6,1.5rem)}" +
     ".lai-topright button{background:none;border:none;padding:.25rem 0;cursor:pointer;font-family:inherit;font-size:.7rem;" +
     "letter-spacing:.06em;text-transform:uppercase;color:#7c8494;transition:color .2s}" +
     ".lai-topright button:hover{color:var(--swatch--dark-700,#1b2f53)}" +
+    ".lai-card.lai-collapsed .lai-topright{top:50%;transform:translateY(-50%)}" +
+    ".lai-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .45s ease}" +
+    ".lai-body-inner{overflow:hidden;min-height:0}" +
+    ".lai-card.lai-collapsed .lai-body{grid-template-rows:0fr}" +
     ".lai-fb{margin-top:var(--_spacing---space--4,1rem)}" +
     ".lai-fb textarea{width:100%;box-sizing:border-box;min-height:5rem;padding:.75rem;border:1px solid var(--swatch--dark-900-o20,rgba(7,11,18,.2));" +
     "border-radius:var(--radius--xsmall,.5rem);font-family:inherit;font-size:.9375rem;color:var(--swatch--dark-900,#070b12);background:var(--swatch--light-100,#fff);resize:vertical}" +
     ".lai-fb-row{display:flex;gap:.75rem;margin-top:.625rem;align-items:center}" +
     ".lai-fb-note{font-size:.8125rem;color:#7c8494}" +
-    ".lai-card.lai-collapsed>*:not(.lai-label):not(.lai-topright){display:none}" +
     ".lai-card.lai-collapsed .lai-label{margin-bottom:0}" +
+    ".lai-footer{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;" +
+    "margin-top:var(--_spacing---space--3,.875rem);font-size:.75rem;color:#7c8494}" +
+    ".lai-footer .lai-feedback{background:none;border:none;padding:0;cursor:pointer;font-family:inherit;" +
+    "font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
+    "white-space:nowrap;transition:color .2s}" +
+    ".lai-footer .lai-feedback:hover{color:var(--swatch--dark-700,#1b2f53);text-decoration:underline}" +
     ".lai-label{display:flex;align-items:center;gap:.5rem;font-size:.75rem;letter-spacing:.08em;" +
     "text-transform:uppercase;color:var(--swatch--brand-500,#3083fd);" +
     "font-weight:var(--_typography---font--primary-medium,500);margin-bottom:var(--_spacing---space--3,.875rem)}" +
@@ -157,26 +166,31 @@
 
   function render(card, html, withControls) {
     card.classList.remove("lai-collapsed");
+    if (!withControls) {
+      card.innerHTML = '<div class="lai-label">✦ Landmark Answer</div>' + html;
+      return;
+    }
     card.innerHTML =
       '<div class="lai-label">✦ Landmark Answer</div>' +
-      (withControls
-        ? '<div class="lai-topright">' +
-          '<button type="button" class="lai-feedback" title="Tell us about your experience">Give Feedback</button>' +
-          '<button type="button" class="lai-toggle" title="Collapse this AI summary">Collapse</button>' +
-          "</div>"
-        : "") +
-      html;
+      '<div class="lai-topright"><button type="button" class="lai-toggle" title="Collapse this AI summary">&minus;&nbsp;&nbsp;Collapse</button></div>' +
+      '<div class="lai-body"><div class="lai-body-inner">' +
+      html +
+      '<div class="lai-footer">' +
+      "<span>AI-generated summary. Always test everything against Scripture, and talk with our pastors any time.</span>" +
+      '<button type="button" class="lai-feedback" title="Tell us about your experience">Give Feedback</button>' +
+      "</div></div></div>";
     var toggle = card.querySelector(".lai-toggle");
-    if (toggle) toggle.addEventListener("click", function () {
+    toggle.addEventListener("click", function () {
       var collapsed = card.classList.toggle("lai-collapsed");
-      toggle.textContent = collapsed ? "Show" : "Collapse";
+      toggle.innerHTML = collapsed ? "+&nbsp;&nbsp;Show" : "&minus;&nbsp;&nbsp;Collapse";
     });
     var fb = card.querySelector(".lai-feedback");
-    if (fb) fb.addEventListener("click", function () { openFeedback(card); });
+    fb.addEventListener("click", function () { openFeedback(card); });
   }
 
   function openFeedback(card) {
     if (card.querySelector(".lai-fb")) return;
+    var host = card.querySelector(".lai-body-inner") || card;
     var box = document.createElement("div");
     box.className = "lai-fb";
     box.innerHTML =
@@ -185,7 +199,7 @@
       '<button type="button" class="lai-btn lai-fb-send">Send</button>' +
       '<button type="button" class="lai-btn2 lai-fb-cancel">Cancel</button>' +
       "</div>";
-    card.appendChild(box);
+    host.appendChild(box);
     var ta = box.querySelector("textarea");
     ta.focus();
     box.querySelector(".lai-fb-cancel").addEventListener("click", function () { box.remove(); });
@@ -260,7 +274,6 @@
             return '<a href="' + g.url + '" target="_blank" rel="noopener">' + g.title + " (" + g.source + ")</a>";
           }).join(" · ") + "</div>";
         }
-        html += '<div class="lai-disclaimer">AI-generated summary. Always test everything against Scripture, and talk with our pastors any time.</div>';
         render(card, html, true);
         // Show "See more" only when clamping actually hides content:
         // compare the real unclamped height against the clamped height
