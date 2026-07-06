@@ -89,6 +89,7 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   ];
 
   let response: Anthropic.Message;
+  let containerId: string | undefined;
   for (let turn = 0; ; turn++) {
     // No extended thinking + low effort: short grounded summaries where
     // latency matters more than deliberation.
@@ -102,7 +103,12 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
       },
       tools,
       messages,
+      // Web search's dynamic filtering runs in a server-side container; when a
+      // turn pauses with pending code-execution work, the continuation request
+      // must reference the same container.
+      ...(containerId ? { container: containerId } : {}),
     });
+    containerId = response.container?.id ?? containerId;
 
     if (response.stop_reason === "pause_turn") {
       if (turn >= 6) break;
