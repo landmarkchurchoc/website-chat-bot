@@ -138,6 +138,9 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   const result = JSON.parse(text) as AnswerResult;
   // Belt-and-suspenders on the no-dashes style rule.
   result.answer = result.answer.replace(/\s*[—–]\s*/g, ", ");
+  // Naming rule: never "The Landmark Church" (crawled page titles use it, the
+  // church doesn't). URLs are safe: thelandmark.church has no space.
+  result.answer = result.answer.replace(/\b[Tt]he Landmark Church\b/g, "Landmark Church");
   // Resolve vague action links: when the model could only cite the homepage
   // (e.g. the "latest sermon" teaser lives there), look up the quoted title
   // from the answer in the search index and link the specific page instead.
@@ -179,7 +182,7 @@ const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v7"],
+  ["ai-answer-v8"],
   { revalidate: 6 * 60 * 60 }
 );
 

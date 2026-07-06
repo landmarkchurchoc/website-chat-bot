@@ -62,6 +62,13 @@ change and each scheduled feedback review.
 - "Give Feedback" inline form on the card → AI Answer Feedback Monday board.
 - This changelog created; recurring feedback-review schedule established.
 
+### 2026-07-06: Naming convention
+- The church is referred to as "Landmark Church" or "Landmark", never
+  "The Landmark Church" (Eric). Enforced three ways: prompt style rule,
+  server-side scrub of the answer text (crawled page titles still use the
+  old form, so the model sees it in context), and a fix in the brain doc.
+- Answer cache key bumped to v8 so stale phrasings expire immediately.
+
 ### 2026-07-05: Feedback-driven polish (Eric's review)
 - Actions are strictly relevance-gated: empty unless the question is about
   something with its own page; generic homepage links dropped (never
