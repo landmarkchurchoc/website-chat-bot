@@ -73,57 +73,6 @@ cp .env.example .env  # fill in keys
 npm run dev           # test page at http://localhost:3000
 ```
 
-## Sermon vertical thumbnails (Webflow + Nano Banana)
-
-When a sermon is added to the Webflow **Sermons** collection, this app can
-automatically turn its 16:9 horizontal thumbnail into a 2:3 vertical thumbnail
-using **Nano Banana** (Gemini 2.5 Flash Image, via Google AI Studio) and write
-the result back to the item's **Vertical Thumbnail** field.
-
-```
-Webflow "sermon created/changed" webhook
-        │
-        ▼
-/api/webflow/sermon-thumbnail
-        │  1. read the Sermon item (skip if it already has a vertical thumbnail)
-        │  2. download the 16:9 `thumbnail`
-        │  3. Nano Banana reflows it to 2:3 (aspectRatio 2:3 + the reposition prompt)
-        │  4. upload the result to the Webflow asset library
-        │  5. write it to `vertical-thumbnail` and publish the item
-        ▼
-Sermon item now has a published 2:3 vertical thumbnail
-```
-
-The route is idempotent — it skips items that already have a vertical thumbnail,
-so Webflow retries and the "changed" event triggered by its own write are no-ops.
-
-### Setup
-
-1. **Environment variables** (Vercel → Settings → Environment Variables):
-   - `GEMINI_API_KEY` — Google AI Studio key (the code also accepts
-     `GOOGLE_AI_API_KEY` / `GOOGLE_AI_STUDIO_API_KEY` / `GOOGLE_API_KEY`)
-   - `WEBFLOW_API_TOKEN` — Webflow Data API token with CMS + Assets read/write
-   - `WEBHOOK_SECRET` — any random string; guards the webhook route
-2. **Register the webhooks** (after deploy), pointing at your live URL with the
-   secret baked in:
-
-   ```bash
-   WEBFLOW_API_TOKEN=... node scripts/sermon-thumbnails.mjs \
-     register "https://YOUR-APP.vercel.app/api/webflow/sermon-thumbnail?secret=YOUR_SECRET"
-   ```
-
-   This registers `collection_item_created` and `collection_item_changed`
-   (both are site-wide; the route filters to the Sermons collection). Use
-   `list` / `unregister` to inspect or remove them.
-3. **Backfill** existing sermons that have no vertical thumbnail yet:
-
-   ```bash
-   WEBFLOW_API_TOKEN=... node scripts/sermon-thumbnails.mjs \
-     backfill "https://YOUR-APP.vercel.app/api/webflow/sermon-thumbnail?secret=YOUR_SECRET" --limit 1
-   ```
-
-   (Drop `--limit 1` to run them all; `--limit 1` is a good first smoke test.)
-
 ## Feeding the organization brain
 
 Add Markdown files to `content/brain/` (see its README). They are indexed on the
