@@ -62,6 +62,17 @@ change and each scheduled feedback review.
 - "Give Feedback" inline form on the card → AI Answer Feedback Monday board.
 - This changelog created; recurring feedback-review schedule established.
 
+### 2026-07-12: Correct Wednesday gathering time (6:30pm)
+- The AI answered "Wednesday at 6:00pm" for the main gathering; the correct
+  time is 6:30pm (Eric). Root cause: stale website content, archived sermon
+  posts and YouTube livestream descriptions still list "Wednesday at 6:00pm",
+  and the 6:00pm youth-ministry times, so the index carries conflicting times.
+- Fix: added `service-times-and-facts.md` to the brain as the authoritative
+  source for times/locations, and a prompt rule that the BRAIN wins over the
+  WEBSITE on concrete facts (times can go stale on old posts). Main Wednesday
+  gathering is 6:30pm; 6:00pm belongs to Jr. High (Wed) and Sr. High (Sun)
+  youth. Cache key bumped to v9; index refreshed.
+
 ### 2026-07-06: Naming convention
 - The church is referred to as "Landmark Church" or "Landmark", never
   "The Landmark Church" (Eric). Enforced three ways: prompt style rule,
