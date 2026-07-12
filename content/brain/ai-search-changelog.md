@@ -62,6 +62,11 @@ change and each scheduled feedback review.
 - "Give Feedback" inline form on the card → AI Answer Feedback Monday board.
 - This changelog created; recurring feedback-review schedule established.
 
+### 2026-07-12: Correct Sunday gathering times (8:30am / 10:30am)
+- Sunday times were also stale on the site ("9:00am & 11:00am"); correct
+  times are 8:30am and 10:30am (Eric). Updated the brain facts file and the
+  prompt override. Cache key bumped to v10; index refreshed.
+
 ### 2026-07-12: Correct Wednesday gathering time (6:30pm)
 - The AI answered "Wednesday at 6:00pm" for the main gathering; the correct
   time is 6:30pm (Eric). Root cause: stale website content, archived sermon

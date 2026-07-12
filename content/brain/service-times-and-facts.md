@@ -8,7 +8,7 @@ content disagrees with the times below, the times below are correct.
 
 ## Main gatherings
 
-- Sunday: 9:00am and 11:00am
+- Sunday: 8:30am and 10:30am (not 9:00am / 11:00am)
 - Wednesday: 6:30pm (not 6:00pm)
 
 ## Family Life Ministries (these are separate from the main gatherings)
