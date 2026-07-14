@@ -60,7 +60,7 @@
     ".lai-deeper{margin-top:.5rem;font-size:.875rem;color:#7c8494}" +
     ".lai-deeper a{color:var(--swatch--brand-500,#3083fd);text-decoration:none;transition:color .2s}" +
     ".lai-deeper a:hover{color:var(--swatch--dark-700,#1b2f53);text-decoration:underline}" +
-    ".lai-actions{display:flex;flex-wrap:wrap;gap:var(--_spacing---space--3,.875rem);align-items:stretch;margin-top:var(--_spacing---space--4,1rem)}" +
+    ".lai-actions{display:flex;flex-wrap:wrap;gap:var(--_spacing---space--3,.875rem);align-items:flex-start;margin-top:var(--_spacing---space--4,1rem)}" +
     ".lai-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--swatch--brand-500,#3083fd);" +
     "color:var(--swatch--light-100,#fff);text-decoration:none;padding:.625rem 1.125rem;" +
     "border-radius:var(--radius--small,.75rem);font-size:.8125rem;font-weight:var(--_typography---font--primary-medium,500);" +
@@ -76,7 +76,9 @@
     ".lai-media{display:block;width:16rem;max-width:100%;text-decoration:none;border-radius:var(--radius--small,.75rem);" +
     "overflow:hidden;background:var(--swatch--light-100,#fff);transition:transform .2s;box-shadow:0 2px 12px #00000014}" +
     ".lai-media:hover{transform:translateY(-2px)}" +
-    ".lai-media img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}" +
+    // Keep each thumbnail's native aspect ratio (16:9 sermon art, 1:1 team
+    // headshots, etc.) instead of forcing a crop.
+    ".lai-media img{display:block;width:100%;height:auto}" +
     ".lai-media span{display:flex;align-items:center;gap:.375rem;padding:.625rem .875rem;font-size:.8125rem;" +
     "font-weight:var(--_typography---font--primary-medium,500);letter-spacing:.05em;text-transform:uppercase;" +
     "color:var(--swatch--brand-500,#3083fd)}" +
