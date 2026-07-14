@@ -375,24 +375,56 @@
     sizeMedia(card);
   }
 
-  // Thumbnails are all 9rem tall; set each card's width from the image's true
-  // aspect ratio (capped at 16rem) so the card hugs the image and the label bar
-  // matches it, rather than the card stretching to the label's width.
+  // Size the thumbnail cards. Base height is the 16:9 height (9rem) and each
+  // card's width comes from its image's real aspect ratio so the card hugs the
+  // image. Then, if one card is taller (e.g. its label wrapped to two lines),
+  // the other images grow proportionally so every card ends the same height and
+  // their bottoms line up. Labels are never resized.
   function sizeMedia(card) {
     var rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     var maxPx = 16 * rootPx, hPx = 9 * rootPx;
-    var cards = card.querySelectorAll(".lai-media");
-    for (var i = 0; i < cards.length; i++) {
-      (function (el) {
-        var img = el.querySelector("img");
-        if (!img) return;
-        function apply() {
-          if (!img.naturalWidth || !img.naturalHeight) return;
-          el.style.width = Math.min(maxPx, (img.naturalWidth / img.naturalHeight) * hPx) + "px";
-        }
-        if (img.complete) apply();
-        else img.addEventListener("load", apply);
-      })(cards[i]);
+    var els = card.querySelectorAll(".lai-media");
+    if (!els.length) return;
+    var imgs = [];
+    for (var i = 0; i < els.length; i++) {
+      var im = els[i].querySelector("img");
+      if (im) imgs.push(im);
+    }
+
+    function layout() {
+      var info = [];
+      // Pass 1: base each card at 9rem tall, width from the image ratio, then
+      // measure how tall its label is (card height minus image height).
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i], img = el.querySelector("img");
+        if (!img || !img.naturalWidth) continue;
+        var r = img.naturalWidth / img.naturalHeight;
+        img.style.height = hPx + "px";
+        el.style.width = Math.min(maxPx, r * hPx) + "px";
+        info.push({ el: el, img: img, r: r });
+      }
+      var maxLabel = 0;
+      for (var j = 0; j < info.length; j++) {
+        info[j].labelH = info[j].el.offsetHeight - info[j].img.offsetHeight;
+        if (info[j].labelH > maxLabel) maxLabel = info[j].labelH;
+      }
+      // Pass 2: grow each image so image + label reaches the tallest total.
+      for (var k = 0; k < info.length; k++) {
+        var targetImgH = hPx + (maxLabel - info[k].labelH);
+        info[k].img.style.height = targetImgH + "px";
+        info[k].el.style.width = info[k].r * targetImgH + "px";
+      }
+    }
+
+    var pending = imgs.length, done = 0;
+    function tick() { if (++done >= pending) layout(); }
+    if (!pending) return;
+    for (var i = 0; i < imgs.length; i++) {
+      if (imgs[i].complete && imgs[i].naturalWidth) tick();
+      else {
+        imgs[i].addEventListener("load", tick);
+        imgs[i].addEventListener("error", tick);
+      }
     }
   }
 
