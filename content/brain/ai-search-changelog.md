@@ -79,6 +79,14 @@ change and each scheduled feedback review.
   (WEB_SEARCH_MAX_CHUNKS, WEB_SEARCH_ALWAYS).
 - Cache key bumped to v11. Optional follow-up: a cron pinger to keep the
   function warm (skipped for now; depends on the Vercel plan's cron limits).
+- Latency findings (measured live): cache hits ~0.3-0.5s. Cold/uncached
+  answers stream first text at ~3-7s and finish at ~10-16s (more when a
+  theological question triggers web search). Streaming roughly halves the
+  perceived wait, but a hard 5-6s total is not reachable on Sonnet: the cost
+  is model generation plus serverless variance, not a tunable knob (tested:
+  reasoning effort and the json_schema grammar are not the driver; Haiku 4.5
+  errors in this pipeline). Getting reliably under ~6s would mean a faster
+  model (quality tradeoff) or a warm-instance setup, which is Eric's call.
 
 ### 2026-07-12: Correct Sunday gathering times (8:30am / 10:30am)
 - Sunday times were also stale on the site ("9:00am & 11:00am"); correct
