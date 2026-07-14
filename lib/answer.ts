@@ -43,10 +43,17 @@ export interface AnswerResult {
 // cache hit (which never runs generateAnswer) simply never calls onText.
 export const streamCtx = new AsyncLocalStorage<{ onText: (delta: string) => void }>();
 
-async function generateAnswer(question: string): Promise<AnswerResult> {
+export interface GenerateOpts {
+  model?: string;
+  effort?: "low" | "medium" | "high";
+}
+
+export async function generateAnswer(question: string, opts: GenerateOpts = {}): Promise<AnswerResult> {
   const client = new Anthropic();
   const { chunks, count } = retrieveScored(question);
   const onText = streamCtx.getStore()?.onText;
+  const model = opts.model || MODEL;
+  const effort = opts.effort || "low";
 
   const allowSearch = count < SEARCH_MAX_CHUNKS || process.env.WEB_SEARCH_ALWAYS === "1";
 
@@ -90,11 +97,11 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
     // forward tokens as they are produced; finalMessage() gives us the whole
     // structured result to parse and cache.
     const stream = client.messages.stream({
-      model: MODEL,
+      model,
       max_tokens: 2048,
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       output_config: {
-        effort: "low",
+        effort,
         format: { type: "json_schema", schema: ANSWER_SCHEMA },
       },
       tools,

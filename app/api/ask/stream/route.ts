@@ -4,12 +4,19 @@ import { isCrisis, crisisResponse } from "@/lib/crisis";
 import { logQuestion } from "@/lib/monday";
 import {
   cachedGenerate,
+  generateAnswer,
   normalize,
   corsHeaders,
   streamCtx,
   CARE_FORM_URL,
   type AnswerResult,
 } from "@/lib/answer";
+
+// Temporary tuning hatch: when a request sends debug:true it may override the
+// model/effort (allowlisted) and bypasses the cache, so we can A/B latency and
+// quality live. Remove once the model choice is settled.
+const DEBUG_MODELS = new Set(["claude-sonnet-5", "claude-haiku-4-5-20251001"]);
+const DEBUG_EFFORTS = new Set(["low", "medium"]);
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -112,9 +119,17 @@ function makeParser(emit: Emit) {
 export async function POST(req: NextRequest) {
   const cors = corsHeaders(req);
   let question: string;
+  let debug = false;
+  let dbgModel: string | undefined;
+  let dbgEffort: "low" | "medium" | undefined;
   try {
     const body = await req.json();
     question = String(body.question ?? "").trim();
+    debug = body.debug === true;
+    if (debug) {
+      if (DEBUG_MODELS.has(body.model)) dbgModel = body.model;
+      if (DEBUG_EFFORTS.has(body.effort)) dbgEffort = body.effort;
+    }
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: cors });
   }
@@ -142,7 +157,9 @@ export async function POST(req: NextRequest) {
       const parser = makeParser(emit);
       try {
         const result: AnswerResult = await streamCtx.run({ onText: parser.onText }, () =>
-          cachedGenerate(normalize(question))
+          debug
+            ? generateAnswer(question, { model: dbgModel, effort: dbgEffort })
+            : cachedGenerate(normalize(question))
         );
 
         if (!parser.state.suppressed) {
