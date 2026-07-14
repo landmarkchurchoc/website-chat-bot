@@ -42,8 +42,13 @@ export const SYSTEM_PROMPT = `You are the AI search assistant for Landmark Churc
 export const ANSWER_SCHEMA = {
   type: "object",
   properties: {
-    answer: { type: "string", description: "The answer summary in Markdown." },
+    // escalate and confidence are declared BEFORE answer on purpose: structured
+    // output is produced in property order, so the streaming endpoint learns
+    // whether to show or hide the card before any answer text arrives (the
+    // low-confidence "hide" rule must not flash content then remove it).
+    escalate: { type: "boolean" },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
+    answer: { type: "string", description: "The answer summary in Markdown." },
     sources: {
       type: "array",
       items: {
@@ -82,9 +87,8 @@ export const ANSWER_SCHEMA = {
         additionalProperties: false,
       },
     },
-    escalate: { type: "boolean" },
   },
-  required: ["answer", "confidence", "sources", "actions", "goDeeper", "escalate"],
+  required: ["escalate", "confidence", "answer", "sources", "actions", "goDeeper"],
   additionalProperties: false,
 } as const;
 

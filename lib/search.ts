@@ -36,12 +36,26 @@ mini.addAll(chunks);
 
 /** Retrieve the most relevant website + brain chunks for a question. */
 export function retrieve(question: string, limit = 8): Chunk[] {
+  return retrieveScored(question, limit).chunks;
+}
+
+/**
+ * Retrieve chunks plus a strength signal. `count` is how many chunks matched
+ * and `topScore` is the best MiniSearch score; both are used to decide whether
+ * the site/brain already cover a question (so we can skip the slow web-search
+ * tool) or whether it is a topic the site does not address.
+ */
+export function retrieveScored(
+  question: string,
+  limit = 8
+): { chunks: Chunk[]; count: number; topScore: number } {
   const results = mini.search(question).slice(0, limit);
-  return results.map((r) => ({
+  const chunks = results.map((r) => ({
     id: r.id,
     title: r.title,
     url: r.url,
     source: r.source,
     text: r.text,
   }));
+  return { chunks, count: results.length, topScore: results[0]?.score ?? 0 };
 }

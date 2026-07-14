@@ -62,6 +62,24 @@ change and each scheduled feedback review.
 - "Give Feedback" inline form on the card → AI Answer Feedback Monday board.
 - This changelog created; recurring feedback-review schedule established.
 
+### 2026-07-14: Speed, streamed answers
+- Answers now stream token-by-token so the first words appear in ~1-2s instead
+  of waiting the full generation. New `POST /api/ask/stream` (newline-delimited
+  JSON events); the widget reads it and types the answer in live, then the
+  final "done" event re-renders the authoritative, scrubbed result with
+  sources/actions. The widget falls back to the plain `/api/ask` JSON endpoint
+  on any streaming error, so the card never fails to appear.
+- Caching preserved through streaming via AsyncLocalStorage: cache hits still
+  return instantly, misses stream live. The answer schema now lists escalate
+  and confidence before answer so the low-confidence "hide" rule is applied
+  before any text is shown (no flash-then-remove).
+- Web search is now only attached when local retrieval is thin (few matching
+  chunks), since it is the biggest source of tail latency and most church-info
+  questions are fully covered by the site/brain. Tunable via env
+  (WEB_SEARCH_MAX_CHUNKS, WEB_SEARCH_ALWAYS).
+- Cache key bumped to v11. Optional follow-up: a cron pinger to keep the
+  function warm (skipped for now; depends on the Vercel plan's cron limits).
+
 ### 2026-07-12: Correct Sunday gathering times (8:30am / 10:30am)
 - Sunday times were also stale on the site ("9:00am & 11:00am"); correct
   times are 8:30am and 10:30am (Eric). Updated the brain facts file and the

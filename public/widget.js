@@ -14,6 +14,7 @@
 (function () {
   var script = document.currentScript;
   var ENDPOINT = (script && script.getAttribute("data-endpoint")) || "/api/ask";
+  var STREAM_ENDPOINT = ENDPOINT.replace(/\/+$/, "") + "/stream";
   var INPUT_SEL = (script && script.getAttribute("data-input")) || 'input[type="search"]';
   var TARGET_SEL = (script && script.getAttribute("data-target")) || "[data-ai-answer]";
 
@@ -226,77 +227,148 @@
     });
   }
 
+  var LOADING =
+    '<div class="lai-loading"><span class="lai-dot"></span><span class="lai-dot"></span><span class="lai-dot"></span> Finding an answer…</div>';
+
   function ask(question) {
     if (!question || question.length < 8) return; // too short to be a question
     lastQuestion = question;
     var card = getCard();
-    render(card, '<div class="lai-loading"><span class="lai-dot"></span><span class="lai-dot"></span><span class="lai-dot"></span> Finding an answer…</div>');
+    render(card, LOADING);
+    // Stream first for the fastest possible first paint; on any streaming
+    // problem fall back to the plain JSON endpoint so an answer still appears.
+    askStream(question, card).catch(function () { askJson(question, card); });
+  }
+
+  // Plain request/response path (also the fallback if streaming fails).
+  function askJson(question, card) {
     fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: question }),
     })
       .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.error) { card.remove(); return; }
-        if (data.confidence === "low" && !data.escalate) { card.remove(); return; } // honesty: no shaky summaries
-        var html = '<div class="lai-answer lai-clamped">' + mdToHtml(data.answer) + "</div>" +
-          '<button type="button" class="lai-more" hidden>See more</button>';
-        if (data.escalate && data.careFormUrl) {
-          html += '<div class="lai-escalate">💛 We’d love to walk with you personally. <a href="' + data.careFormUrl + '">Reach our care team here</a>.</div>';
+      .then(function (data) { renderFromData(card, data); })
+      .catch(function () { card.remove(); });
+  }
+
+  // Streamed path: reads newline-delimited events and types the answer in as
+  // the model produces it. Returns a promise that rejects on any failure so
+  // ask() can fall back cleanly.
+  function askStream(question, card) {
+    return fetch(STREAM_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: question }),
+    }).then(function (res) {
+      if (!res.ok || !res.body || !res.body.getReader) throw new Error("no stream");
+      var reader = res.body.getReader();
+      var dec = new TextDecoder();
+      var buf = "", prose = "", started = false, finished = false;
+
+      function shell() {
+        if (started) return;
+        started = true;
+        render(card, '<div class="lai-answer"></div>', true);
+      }
+      function handle(ev) {
+        if (ev.t === "delta") {
+          shell();
+          prose += ev.v;
+          var a = card.querySelector(".lai-answer");
+          if (a) a.innerHTML = mdToHtml(prose);
+        } else if (ev.t === "done") {
+          finished = true;
+          renderFromData(card, ev.data); // authoritative: replaces streamed prose
+        } else if (ev.t === "suppress") {
+          finished = true;
+          card.remove();
+        } else if (ev.t === "error") {
+          throw new Error("stream error");
         }
-        if (data.actions && data.actions.length) {
-          var media = data.actions.filter(function (a) { return a.thumbnail; });
-          var plain = data.actions.filter(function (a) { return !a.thumbnail; });
-          if (media.length) {
-            html += '<div class="lai-actions">' + media.map(function (a) {
-              return '<a class="lai-media" href="' + escAttr(a.url) + '"><img src="' + escAttr(a.thumbnail) + '" alt="" loading="lazy"/><span>' + escAttr(a.label) + ' ›</span></a>';
-            }).join("") + "</div>";
-            // Secondary links sit as quiet outline buttons under the thumbnail.
-            if (plain.length) {
-              html += '<div class="lai-actions-sub">' + plain.map(function (a) {
-                return '<a class="lai-btn2" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
-              }).join("") + "</div>";
-            }
-          } else if (plain.length) {
-            html += '<div class="lai-actions">' + plain.map(function (a) {
-              return '<a class="lai-btn" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
-            }).join("") + "</div>";
+      }
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) {
+            if (!finished) throw new Error("stream ended early");
+            return;
           }
-        }
-        if (data.sources && data.sources.length) {
-          html += '<div class="lai-sources"><b>Sources:</b> ' + data.sources.map(function (s) {
-            return '<a href="' + s.url + '" target="_blank" rel="noopener">' + s.title + "</a>";
+          buf += dec.decode(r.value, { stream: true });
+          var parts = buf.split("\n");
+          buf = parts.pop();
+          for (var i = 0; i < parts.length; i++) {
+            var line = parts[i].trim();
+            if (!line) continue;
+            var ev;
+            try { ev = JSON.parse(line); } catch (e) { continue; }
+            handle(ev);
+          }
+          return pump();
+        });
+      }
+      return pump();
+    });
+  }
+
+  // Render a finished answer payload into the card (used by both paths).
+  function renderFromData(card, data) {
+    if (!data || data.error) { card.remove(); return; }
+    if (data.confidence === "low" && !data.escalate) { card.remove(); return; } // honesty: no shaky summaries
+    var html = '<div class="lai-answer lai-clamped">' + mdToHtml(data.answer) + "</div>" +
+      '<button type="button" class="lai-more" hidden>See more</button>';
+    if (data.escalate && data.careFormUrl) {
+      html += '<div class="lai-escalate">💛 We’d love to walk with you personally. <a href="' + data.careFormUrl + '">Reach our care team here</a>.</div>';
+    }
+    if (data.actions && data.actions.length) {
+      var media = data.actions.filter(function (a) { return a.thumbnail; });
+      var plain = data.actions.filter(function (a) { return !a.thumbnail; });
+      if (media.length) {
+        html += '<div class="lai-actions">' + media.map(function (a) {
+          return '<a class="lai-media" href="' + escAttr(a.url) + '"><img src="' + escAttr(a.thumbnail) + '" alt="" loading="lazy"/><span>' + escAttr(a.label) + ' ›</span></a>';
+        }).join("") + "</div>";
+        // Secondary links sit as quiet outline buttons under the thumbnail.
+        if (plain.length) {
+          html += '<div class="lai-actions-sub">' + plain.map(function (a) {
+            return '<a class="lai-btn2" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
           }).join("") + "</div>";
         }
-        if (data.goDeeper && data.goDeeper.length) {
-          html += '<div class="lai-deeper"><b>Go deeper:</b> ' + data.goDeeper.map(function (g) {
-            return '<a href="' + g.url + '" target="_blank" rel="noopener">' + g.title + " (" + g.source + ")</a>";
-          }).join(" · ") + "</div>";
-        }
-        render(card, html, true);
-        // Show "See more" only when clamping actually hides content:
-        // compare the real unclamped height against the clamped height
-        // (scrollHeight alone is fooled by paragraph margins).
-        var ans = card.querySelector(".lai-answer");
-        var btn = card.querySelector(".lai-more");
-        if (ans && btn) {
-          ans.classList.remove("lai-clamped");
-          var fullH = ans.getBoundingClientRect().height;
-          ans.classList.add("lai-clamped");
-          var clampedH = ans.getBoundingClientRect().height;
-          if (fullH > clampedH + 8) {
-            btn.hidden = false;
-            btn.addEventListener("click", function () {
-              var nowClamped = ans.classList.toggle("lai-clamped");
-              btn.textContent = nowClamped ? "See more" : "See less";
-            });
-          } else {
-            ans.classList.remove("lai-clamped");
-          }
-        }
-      })
-      .catch(function () { card.remove(); });
+      } else if (plain.length) {
+        html += '<div class="lai-actions">' + plain.map(function (a) {
+          return '<a class="lai-btn" href="' + escAttr(a.url) + '">' + escAttr(a.label) + '</a>';
+        }).join("") + "</div>";
+      }
+    }
+    if (data.sources && data.sources.length) {
+      html += '<div class="lai-sources"><b>Sources:</b> ' + data.sources.map(function (s) {
+        return '<a href="' + s.url + '" target="_blank" rel="noopener">' + s.title + "</a>";
+      }).join("") + "</div>";
+    }
+    if (data.goDeeper && data.goDeeper.length) {
+      html += '<div class="lai-deeper"><b>Go deeper:</b> ' + data.goDeeper.map(function (g) {
+        return '<a href="' + g.url + '" target="_blank" rel="noopener">' + g.title + " (" + g.source + ")</a>";
+      }).join(" · ") + "</div>";
+    }
+    render(card, html, true);
+    // Show "See more" only when clamping actually hides content:
+    // compare the real unclamped height against the clamped height
+    // (scrollHeight alone is fooled by paragraph margins).
+    var ans = card.querySelector(".lai-answer");
+    var btn = card.querySelector(".lai-more");
+    if (ans && btn) {
+      ans.classList.remove("lai-clamped");
+      var fullH = ans.getBoundingClientRect().height;
+      ans.classList.add("lai-clamped");
+      var clampedH = ans.getBoundingClientRect().height;
+      if (fullH > clampedH + 8) {
+        btn.hidden = false;
+        btn.addEventListener("click", function () {
+          var nowClamped = ans.classList.toggle("lai-clamped");
+          btn.textContent = nowClamped ? "See more" : "See less";
+        });
+      } else {
+        ans.classList.remove("lai-clamped");
+      }
+    }
   }
 
   function wire() {
