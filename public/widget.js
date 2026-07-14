@@ -73,12 +73,13 @@
     ".lai-btn2:hover{background:var(--swatch--dark-900,#070b12);color:var(--swatch--light-100,#fff);border-color:var(--swatch--dark-900,#070b12)}" +
     ".lai-actions-sub{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem}" +
     ".lai-actions-sub .lai-btn2{width:16rem;max-width:100%}" +
-    ".lai-media{display:block;width:16rem;max-width:100%;text-decoration:none;border-radius:var(--radius--small,.75rem);" +
+    ".lai-media{display:block;width:fit-content;max-width:16rem;text-decoration:none;border-radius:var(--radius--small,.75rem);" +
     "overflow:hidden;background:var(--swatch--light-100,#fff);transition:transform .2s;box-shadow:0 2px 12px #00000014}" +
     ".lai-media:hover{transform:translateY(-2px)}" +
-    // Keep each thumbnail's native aspect ratio (16:9 sermon art, 1:1 team
-    // headshots, etc.) instead of forcing a crop.
-    ".lai-media img{display:block;width:100%;height:auto}" +
+    // Keep each thumbnail's native aspect ratio (no crop), but pin all of them
+    // to the same height as a 16:9 thumbnail (16rem wide * 9/16 = 9rem) and let
+    // the width scale proportionally, so a 1:1 headshot shows as a ~9rem square.
+    ".lai-media img{display:block;height:9rem;width:auto;max-width:100%}" +
     ".lai-media span{display:flex;align-items:center;gap:.375rem;padding:.625rem .875rem;font-size:.8125rem;" +
     "font-weight:var(--_typography---font--primary-medium,500);letter-spacing:.05em;text-transform:uppercase;" +
     "color:var(--swatch--brand-500,#3083fd)}" +
