@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
   let debug = false;
   let dbgModel: string | undefined;
   let dbgEffort: "low" | "medium" | undefined;
+  let dbgRaw = false;
   try {
     const body = await req.json();
     question = String(body.question ?? "").trim();
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
     if (debug) {
       if (DEBUG_MODELS.has(body.model)) dbgModel = body.model;
       if (DEBUG_EFFORTS.has(body.effort)) dbgEffort = body.effort;
+      dbgRaw = body.raw === true;
     }
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: cors });
@@ -154,11 +156,16 @@ export async function POST(req: NextRequest) {
         return;
       }
 
-      const parser = makeParser(emit);
+      // Raw measurement mode forwards every text delta straight through (no
+      // JSON parse) so we can time the model's true first token without the
+      // structured-output grammar.
+      const parser = dbgRaw
+        ? { onText: (d: string) => emit({ t: "delta", v: d }), state: { suppressed: false } }
+        : makeParser(emit);
       try {
         const result: AnswerResult = await streamCtx.run({ onText: parser.onText }, () =>
           debug
-            ? generateAnswer(question, { model: dbgModel, effort: dbgEffort })
+            ? generateAnswer(question, { model: dbgModel, effort: dbgEffort, format: dbgRaw ? false : undefined })
             : cachedGenerate(normalize(question))
         );
 

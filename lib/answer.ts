@@ -46,6 +46,7 @@ export const streamCtx = new AsyncLocalStorage<{ onText: (delta: string) => void
 export interface GenerateOpts {
   model?: string;
   effort?: "low" | "medium" | "high";
+  format?: boolean; // default true; when false, skip the json_schema grammar
 }
 
 export async function generateAnswer(question: string, opts: GenerateOpts = {}): Promise<AnswerResult> {
@@ -102,7 +103,7 @@ export async function generateAnswer(question: string, opts: GenerateOpts = {}):
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       output_config: {
         effort,
-        format: { type: "json_schema", schema: ANSWER_SCHEMA },
+        ...(opts.format === false ? {} : { format: { type: "json_schema", schema: ANSWER_SCHEMA } }),
       },
       tools,
       messages,
@@ -140,6 +141,11 @@ export async function generateAnswer(question: string, opts: GenerateOpts = {}):
 
   const text = final.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
   if (!text) throw new Error(`No answer produced (stop_reason: ${final.stop_reason})`);
+  // Measurement path: without the json_schema grammar the model returns prose,
+  // not JSON, so hand it back as-is rather than parsing.
+  if (opts.format === false) {
+    return { escalate: false, confidence: "high", answer: text, sources: [], actions: [], goDeeper: [] };
+  }
   const result = JSON.parse(text) as AnswerResult;
   // Belt-and-suspenders on the no-dashes style rule.
   result.answer = result.answer.replace(/\s*[—–]\s*/g, ", ");
