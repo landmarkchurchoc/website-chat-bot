@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import type { NextRequest } from "next/server";
 import { retrieveScored, thumbnailFor, findPage } from "@/lib/search";
 import { getEsvPassage } from "@/lib/esv";
+import { isSpeakerQuery, getSpeakerSchedule } from "@/lib/speakers";
 import { SYSTEM_PROMPT, ANSWER_SCHEMA, buildUserMessage } from "@/lib/prompt";
 
 // Sonnet tier: markedly faster first-answers; the theological guardrails
@@ -43,12 +44,20 @@ export interface AnswerResult {
 // cache hit (which never runs generateAnswer) simply never calls onText.
 export const streamCtx = new AsyncLocalStorage<{ onText: (delta: string) => void }>();
 
-async function generateAnswer(question: string): Promise<AnswerResult> {
+export async function generateAnswer(question: string): Promise<AnswerResult> {
   const client = new Anthropic();
   const { chunks, count } = retrieveScored(question);
   const onText = streamCtx.getStore()?.onText;
 
-  const allowSearch = count < SEARCH_MAX_CHUNKS || process.env.WEB_SEARCH_ALWAYS === "1";
+  // Speaker-schedule questions get the live Monday board injected as
+  // authoritative context (see lib/speakers.ts). The routes do not cache these
+  // queries, so the schedule stays current.
+  const schedule = isSpeakerQuery(question) ? await getSpeakerSchedule() : null;
+
+  // Skip web search when the schedule answers it (internal data) or when local
+  // retrieval already covers the question.
+  const allowSearch =
+    !schedule && (count < SEARCH_MAX_CHUNKS || process.env.WEB_SEARCH_ALWAYS === "1");
 
   const tools: Anthropic.Messages.ToolUnion[] = [];
   if (allowSearch) {
@@ -79,7 +88,7 @@ async function generateAnswer(question: string): Promise<AnswerResult> {
   });
 
   let messages: Anthropic.MessageParam[] = [
-    { role: "user", content: buildUserMessage(question, chunks) },
+    { role: "user", content: buildUserMessage(question, chunks, schedule ?? undefined) },
   ];
 
   let final: Anthropic.Message;
@@ -180,7 +189,7 @@ export const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 export const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v11"],
+  ["ai-answer-v12"],
   { revalidate: 6 * 60 * 60 }
 );
 

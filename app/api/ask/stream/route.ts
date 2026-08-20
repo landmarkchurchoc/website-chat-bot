@@ -4,12 +4,14 @@ import { isCrisis, crisisResponse } from "@/lib/crisis";
 import { logQuestion } from "@/lib/monday";
 import {
   cachedGenerate,
+  generateAnswer,
   normalize,
   corsHeaders,
   streamCtx,
   CARE_FORM_URL,
   type AnswerResult,
 } from "@/lib/answer";
+import { isSpeakerQuery } from "@/lib/speakers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -141,8 +143,9 @@ export async function POST(req: NextRequest) {
 
       const parser = makeParser(emit);
       try {
+        // Speaker-schedule questions bypass the cache to read the live board.
         const result: AnswerResult = await streamCtx.run({ onText: parser.onText }, () =>
-          cachedGenerate(normalize(question))
+          isSpeakerQuery(question) ? generateAnswer(question) : cachedGenerate(normalize(question))
         );
 
         if (!parser.state.suppressed) {

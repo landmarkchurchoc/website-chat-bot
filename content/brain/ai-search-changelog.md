@@ -32,6 +32,18 @@ change and each scheduled feedback review.
 
 ## Changelog
 
+### 2026-08-20: Live speaker schedule
+- Added a live data source: the "Speaker Schedule" Monday board (18427433958,
+  Creative Team workspace; columns Name, Series, Service Date, Service Day).
+  When a question is about who is speaking/preaching and when (see
+  isSpeakerQuery in `lib/speakers.ts`), the board is fetched live and injected
+  as authoritative context with today's date, so "who is preaching this Sunday?"
+  stays current as the board is updated. Uses the same MONDAY_API_TOKEN.
+- These questions bypass the answer cache (they are date-relative) and skip web
+  search. The schedule is internal, so the model is told not to cite a source
+  URL for it. Cache key bumped to v12. Approved by Eric (live vs static choice).
+- Board id overridable via env MONDAY_SPEAKER_BOARD_ID.
+
 ### 2026-07-02: Initial build
 - Three-tier RAG answer engine, Webflow widget, ESV tool, restricted web
   search, crisis escalation, Monday question logging, copyright guardrails.

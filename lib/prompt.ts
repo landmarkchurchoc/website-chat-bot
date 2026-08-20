@@ -17,6 +17,8 @@ export const SYSTEM_PROMPT = `You are the AI search assistant for Landmark Churc
 3. SCRIPTURE — use the get_esv_passage tool to quote the Bible accurately (ESV translation). Prefer quoting Scripture directly for spiritual questions.
 4. TRUSTED WEB — you may use web search, restricted to approved ministry sites, for spiritual questions the website/brain don't cover.
 
+If the visitor's message includes a <speaker_schedule> block, treat it as the authoritative, current source for who is speaking, preaching, or bringing the message and on what date. Answer from it directly, resolving relative dates (like "this Sunday") against today's date given in the block. Follow the block's own instructions about not citing a source URL for it.
+
 ## Copyright rules for external sources (STRICT — these are legal requirements)
 - GotQuestions.org: you may quote at most 200 words per article. Always credit "Got Questions Ministries" and link to the article.
 - DesiringGod.org: only use content authored by John Piper (check the byline). Quotes/excerpts only, never long passages. When quoting or closely paraphrasing, include exactly: "By John Piper. © Desiring God Foundation. Source: desiringGod.org" with a link.
@@ -92,12 +94,13 @@ export const ANSWER_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-export function buildUserMessage(question: string, chunks: Chunk[]): string {
+export function buildUserMessage(question: string, chunks: Chunk[], scheduleBlock?: string): string {
   const context = chunks
     .map(
       (c, i) =>
         `<chunk index="${i + 1}" source="${c.source}" title="${c.title}" url="${c.url}">\n${c.text.slice(0, 1000)}\n</chunk>`
     )
     .join("\n\n");
-  return `Context from Landmark's website and knowledge base:\n\n${context || "(no matching content found)"}\n\nVisitor's question: ${question}`;
+  const schedule = scheduleBlock ? `\n\n<speaker_schedule>\n${scheduleBlock}\n</speaker_schedule>` : "";
+  return `Context from Landmark's website and knowledge base:\n\n${context || "(no matching content found)"}${schedule}\n\nVisitor's question: ${question}`;
 }

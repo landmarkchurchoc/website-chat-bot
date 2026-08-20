@@ -2,7 +2,8 @@ import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse } from "next/server";
 import { isCrisis, crisisResponse } from "@/lib/crisis";
 import { logQuestion } from "@/lib/monday";
-import { cachedGenerate, normalize, corsHeaders, CARE_FORM_URL } from "@/lib/answer";
+import { cachedGenerate, generateAnswer, normalize, corsHeaders, CARE_FORM_URL } from "@/lib/answer";
+import { isSpeakerQuery } from "@/lib/speakers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,7 +40,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await cachedGenerate(normalize(question));
+    // Speaker-schedule questions bypass the cache so they always read the live
+    // Monday board; everything else uses the shared 6h cache.
+    const result = isSpeakerQuery(question)
+      ? await generateAnswer(question)
+      : await cachedGenerate(normalize(question));
 
     const payload = {
       ...result,
