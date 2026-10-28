@@ -189,7 +189,7 @@ export const normalize = (q: string) =>
 // "baptism"). The normalized text is what gets answered; it reads fine.
 export const cachedGenerate = unstable_cache(
   async (normalizedQuestion: string) => generateAnswer(normalizedQuestion),
-  ["ai-answer-v13"],
+  ["ai-answer-v14"],
   { revalidate: 6 * 60 * 60 }
 );
 
