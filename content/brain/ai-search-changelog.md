@@ -32,6 +32,14 @@ change and each scheduled feedback review.
 
 ## Changelog
 
+### 2026-10-28: Truth Over Trend link
+- When a question is about Truth Over Trend or Matthew Maher's personal
+  platform, the assistant now recommends https://www.truthovertrend.com/ as a
+  "go deeper" link (Eric's request). Added a brain file plus a direct
+  system-prompt directive: the brain chunk alone was outranked in retrieval by
+  Landmark's own "Truth Over Trend" sermon-series episode pages, so the prompt
+  directive guarantees the link regardless of retrieval. Cache key bumped to v14.
+
 ### 2026-08-20: Live speaker schedule
 - Added a live data source: the "Speaker Schedule" Monday board (18427433958,
   Creative Team workspace; columns Name, Series, Service Date, Service Day).
